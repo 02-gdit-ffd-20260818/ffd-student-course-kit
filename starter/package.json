@@ -1,0 +1,17 @@
+{
+  "name": "ffd-p5-music-station",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "dev": "vite",
+    "check": "node scripts/check-project.mjs",
+    "test:unit": "node --test tests/*.test.mjs",
+    "test:component": "vitest run tests/smoke.component.spec.js",
+    "test": "npm run test:unit && npm run test:component",
+    "build": "vite build"
+  },
+  "dependencies": { "pinia": "^3.0.0", "vue": "^3.5.0" },
+  "devDependencies": { "@vitejs/plugin-vue": "^6.0.0", "vite": "^7.0.0", "vitest": "^3.0.0" }
+}
