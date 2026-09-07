@@ -1,0 +1,21 @@
+@base = http://127.0.0.1:3000
+
+GET {{base}}/health
+
+###
+GET {{base}}/api/articles?status=published
+
+###
+POST {{base}}/api/articles
+Content-Type: application/json
+
+{"title":"REST 新文章","summary":"从真实 API 创建","content":["正文"],"tags":["REST"],"status":"draft"}
+
+###
+POST {{base}}/api/articles
+Content-Type: application/json
+
+{"title":"","summary":"应返回字段错误","status":"draft"}
+
+###
+GET {{base}}/api/articles/999
