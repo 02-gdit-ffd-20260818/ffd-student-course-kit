@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.netlify/
+.env
+.env.*
+!.env.example
+*.log
+var/*.sqlite
+var/*.sqlite-*
+var/backups/
+.DS_Store
+Thumbs.db
