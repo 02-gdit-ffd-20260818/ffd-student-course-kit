@@ -1,0 +1,3 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const {filterProjects,sortProjects}=await import('./project-service.mjs');const data=[{name:'B',skills:['CSS']},{name:'A',skills:['HTML']}];const old=JSON.stringify(data);assert.equal(filterProjects(data,'HTML')[0].name,'A');assert.equal(filterProjects(data,'Vue').length,0);assert.deepEqual(sortProjects(data,'asc').map(x=>x.name),['A','B']);assert.deepEqual(sortProjects(data,'desc').map(x=>x.name),['B','A']);assert.equal(JSON.stringify(data),old,'不能修改原数组');console.log('第04课筛选、排序、空结果和原数据保护通过。');
