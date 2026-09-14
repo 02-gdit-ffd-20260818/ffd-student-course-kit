@@ -1,0 +1,3 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const {compileScript,parse}=await import('@vue/compiler-sfc');const {createSSRApp,h}=await import('vue');const {renderToString}=await import('@vue/server-renderer');const txt=readFileSync('src/components/ProjectCard.vue','utf8');assert.match(txt,/defineProps/);assert.match(txt,/project\.name/);assert.match(txt,/project\.summary/);assert.match(txt,/\$emit\('select',\s*project\.id\)/);const {descriptor}=parse(txt);compileScript(descriptor,{id:'p1-card'});console.log('第06课卡片契约和语法通过；还需组件测试、构建及页面点击回归。');
