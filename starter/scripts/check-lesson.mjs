@@ -1,0 +1,3 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const {nextTheme,readTheme,writeTheme}=await import('./theme-service.mjs');const values=new Map();const storage={setItem:(k,v)=>values.set(k,v),getItem:k=>values.get(k)};assert.equal(nextTheme('light'),'dark');assert.equal(nextTheme('dark'),'light');assert.equal(writeTheme(storage,'dark').saved,true);assert.equal(readTheme(storage),'dark');const broken={setItem(){throw Error('blocked')}};assert.equal(writeTheme(broken,'dark').saved,false);console.log('第05课主题切换、持久化、存储失败验收通过；请求四态另做浏览器检查。');
