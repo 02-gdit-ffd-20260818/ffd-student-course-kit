@@ -1,0 +1,780 @@
+# 第03课 数组驱动作品：CMD 全流程实操
+
+从 Git clone 领取模板、修改代码，到提交并推送自己的远程仓库。本版专门用于 Windows CMD。PowerShell 版继续保留，选择一种终端，把整条流程做完即可。这里沿用原来的 web-work、kit-03-v12 和个人 p1-portfolio，不另建一套项目。
+
+## 1. 打开 CMD，认清输入位置
+
+方法一：点击 Windows 开始菜单，输入 cmd，点击“命令提示符”。打开普通窗口即可，课堂命令不需要“以管理员身份运行”。
+
+方法二：在 VS Code 顶部点击“终端 → 新建终端”；点击终端区域右上方“+”旁边的小箭头，选择 Command Prompt（命令提示符）。不要在名称为 PowerShell 的终端粘贴本版命令。
+
+CMD 提示符常见为 C:\Users\你的用户名>，没有 PS 前缀。PowerShell 常见为 PS C:\…>。如果终端正在运行网页，先 Ctrl+C，出现“终止批处理操作吗”时输入 Y 并回车，等提示符重新出现再输入命令。
+
+每个代码框前标注平台、位置和运行方式。rem 开头是 CMD 注释；本手册代码框可以直接复制到交互式 CMD。若提示符已经显示，不要把提示符本身复制进去。带 if 或 for 的多行代码框需要整体复制。
+
+本版变量写成 %courseRoot%，用户目录写成 %USERPROFILE%；不要混用 PowerShell 的 $workRoot 或 $env:USERPROFILE。命令框中的路径用双引号保护，所以用户名含空格也可以使用。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：任意目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 将当前 CMD 的输入输出代码页设为 UTF-8，方便显示中文。
+chcp 65001
+```
+
+成功标志：显示活动代码页为 65001。这只影响当前命令窗口。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：任意目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示 Git 版本，确认已安装。
+git --version
+```
+
+成功标志：出现版本号。如果无法识别，安装对应工具后重新打开 CMD。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：任意目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示 Node.js 版本，本课程使用 v24。
+node --version
+```
+
+成功标志：出现版本号。如果无法识别，安装对应工具后重新打开 CMD。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：任意目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示 npm 版本，npm.cmd 在 CMD 中也可以直接运行。
+npm.cmd --version
+```
+
+成功标志：出现版本号。如果无法识别，安装对应工具后重新打开 CMD。
+
+安装入口：[Git for Windows](https://git-scm.com/downloads/win)、[Node.js](https://nodejs.org/en/download)、[VS Code](https://code.visualstudio.com/Download)。安装 Git 时保留 Git Credential Manager。课前准备 GitHub 个人账号，第一次推送时使用本人账号认证。
+
+## 2. 建立工作目录，用 Git clone 领取本课
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：任意目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 用变量记住本人的上课目录；set 后的整段双引号不会成为值的一部分。
+set "courseRoot=%USERPROFILE%\web-work"
+rem 如果目录不存在，就建立它；已有目录会保留。
+if not exist "%courseRoot%" mkdir "%courseRoot%"
+rem /d 同时切换盘符和文件夹，适用从其他盘符进入工程。
+cd /d "%courseRoot%"
+rem 不带参数的 cd 显示当前完整路径。
+cd
+```
+
+成功标志：最后显示的路径以 web-work 结尾。变量在当前 CMD 窗口内有效，换窗口后按相应步骤重新设置。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：刚建立的 web-work。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 这是老师的学生资源仓库地址，直接复制，不改成自己的成果仓库。
+set "courseRepo=https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git"
+rem clone 下载资源；branch 指定第 3 课，single-branch 只取这一课，depth 1 只取最新提交。
+rem 最后的 kit-03-v12 是下载到电脑后的文件夹名称。
+git clone --branch p1-guide-03-v1.2 --single-branch --depth 1 "%courseRepo%" kit-03-v12
+```
+
+解释：若提示目录已经存在，先查看其 README 核对课次，确认是本课资源才继续。不要删除已有成果或反复 clone。
+
+成功标志：下载成功并返回提示符，目录内出现 kit-03-v12。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：web-work。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 检查模板入口，READY 表示找到，STOP 表示找不到。
+if exist "kit-03-v12\starter\package.json" (echo READY: starter found) else (echo STOP: starter not found)
+```
+
+成功标志：显示 READY: starter found；STOP 时先检查领取结果和当前目录。
+
+kit 是老师的领取目录；starter 是留有课堂任务的初稿；p1-portfolio 是自己的长期工程。只在自己的工程中开发并推送。
+
+## 3. 准备自己的工程
+
+先保存所有编辑，停止旧网页服务，并确认上一课已提交、已推送。本课仍使用原来的 p1-portfolio。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：任意目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 进入自己的工程；百分号变量自动替换成本人用户目录。
+cd /d "%USERPROFILE%\web-work\p1-portfolio"
+```
+
+成功标志：提示符路径以 p1-portfolio 结尾。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 查看未提交内容，没有输出才继续。
+git status --short
+```
+
+成功标志：没有输出；若有 M、A 或 ??，先按上一课流程提交，再回来。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 切回已完成上一课的主分支。
+git switch main
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 同步自己的远程主分支，ff-only 在历史分叉时停止。
+git pull --ff-only origin main
+```
+
+成功标志：Already up to date 或更新成功；失败时停止，不继续导入模板。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 清空用于检查工作区的临时标记。
+set "p1Dirty="
+rem 若 Git 输出任何未提交项，for 就会把标记设为 1。
+rem 本框直接粘贴在 CMD 中，循环变量写成单个百分号 L。
+for /f "delims=" %L in ('git status --porcelain') do set "p1Dirty=1"
+rem 有未提交内容就停止；已有备份也不覆盖。
+if defined p1Dirty (
+  echo STOP: commit your changes before backup.
+) else (
+  if exist "..\p1-before-03.zip" (
+    echo STOP: backup already exists. Inspect it first.
+  ) else (
+    rem 将最近已提交版本导出为 ZIP，未提交内容和 Git 历史不在这个 ZIP 中。
+    git archive --format=zip -o "../p1-before-03.zip" HEAD
+  )
+)
+```
+
+解释：for /f 逐行读取 Git 输出；delims 为空表示不拆分这一行；if defined 检查变量是否存在。只按本框检查结果继续，不需要自行改写控制语句。
+
+成功标志：web-work 下出现 p1-before-03.zip。已有备份时先核对是本轮导入前的备份，确认后才继续。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 建立并进入本课开发分支，main 先保留上一课成果。
+git switch -c lesson-03
+```
+
+成功标志：进入 lesson-03。若分支已存在，先核对本课进度，不重新导入。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 清空用于检查工作区的临时标记。
+set "p1Dirty="
+rem 若 Git 输出任何未提交项，for 就会把标记设为 1。
+rem 本框直接粘贴在 CMD 中，循环变量写成单个百分号 L。
+for /f "delims=" %L in ('git status --porcelain') do set "p1Dirty=1"
+rem 只有工作区干净、备份存在和本课模板完整时，才导入。
+if defined p1Dirty (
+  echo STOP: uncommitted changes. Do not import.
+) else (
+  if not exist "..\p1-before-03.zip" (
+    echo STOP: backup is missing.
+  ) else (
+    if not exist "..\kit-03-v12\starter\package.json" (
+      echo STOP: starter is missing.
+    ) else (
+      rem E 包含子目录，I 指定目标目录，H 保留隐藏项，Y 替换模板同名文件。
+      xcopy "..\kit-03-v12\starter\*" "." /E /I /H /Y
+    )
+  )
+)
+```
+
+解释：Y 会替换同名文件，所以必须先备份。复制不自动删除旧文件，本课暂时保留无冲突的旧文件。
+
+成功标志：本课 TODO 已进入工程，自己的 .git 历史仍保留。
+
+在文件资源管理器中解压 p1-before-03.zip，只把自己的展示名、介绍、项目数据、链接和 README 记录迁移回来，具体位置见第 5 步。不要用旧工程整包覆盖新模板。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 用 VS Code 打开当前工程，点号就是当前文件夹。
+code .
+```
+
+成功标志：左侧直接显示 package.json 与本课代码文件。
+
+若 code 无法识别，手动打开 VS Code，选择“文件 → 打开文件夹”，进入用户目录下 web-work/p1-portfolio 并选择它。只看到一个 p1-portfolio 文件夹时，说明选中了上一级，应重新选择里面的工程。
+
+## 4. 一个 CMD 终端运行网页
+
+在工程窗口点击“终端 → 新建终端”，通过“+”旁的小箭头选择 Command Prompt。原来的领取窗口可以关闭。新 CMD 中先重新进入工程：
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：任意目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 新终端重新进入个人工程，不依赖上一窗口的临时变量。
+cd /d "%USERPROFILE%\web-work\p1-portfolio"
+```
+
+成功标志：路径以 p1-portfolio 结尾。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 按锁文件安装依赖，等待结束后再输入下一条。
+npm.cmd ci
+```
+
+成功标志：命令正常完成；有错误先停止后续步骤。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 检查初稿是否齐备，此时允许 TODO 尚未完成。
+npm.cmd run check:starter
+```
+
+成功标志：命令正常完成；有错误先停止后续步骤。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 启动网页并持续运行，保持这个终端打开。
+npm.cmd run dev
+```
+
+成功标志：显示 Local 地址；用浏览器打开该地址，看到本课初稿。
+
+第 1—5 课通常显示 http://127.0.0.1:5173/，第 6 课以 Vite 显示地址为准。服务运行时终端被占用是正常现象。先保持它运行，修改文件后 Ctrl+S 保存，再回浏览器 Ctrl+R 刷新。需要检查和 Git 操作时，回终端 Ctrl+C；如果询问是否终止批处理，输入 Y 并回车。
+
+## 5. 具体开发：找到原文，再替换代码
+
+通用手势：点击 VS Code 左侧“资源管理器”图标，展开目录，单击指定文件。按 Ctrl+F 搜索给出的标记，按 Esc 关闭搜索框；鼠标选中需要替换的原文，把代码粘贴到编辑区，按 Ctrl+S。不要把代码粘贴进搜索框或终端。
+
+代码示范用于带做。先说明自己预期网页发生什么变化，再输入、保存并观察；完成后至少做一处个人修改，解释修改理由。
+
+### 5.1 恢复上一课的个人内容
+
+index.html 中恢复个人介绍；作品内容统一放到 data.js 中，不再往 HTML 硬写一排作品卡片。 先只迁移内容，再补本课 TODO。
+
+### 5.2 修改 app.js
+
+打开 p1-portfolio/app.js。搜索 TODO-L3，找到下面这段原文。只选中这段，不要选中相邻函数或其他区块。
+
+修改前：
+
+```javascript
+export function renderProjects(items) {
+  // TODO-L3: 标准化、清空旧节点、空态、循环追加、更新数量。
+  projectStatus.textContent = '请完成本课的数组渲染任务'
+}
+```
+
+替换成：
+
+```javascript
+export function renderProjects(items) {
+  const normalized = normalizeProjects(items)
+  projectList.replaceChildren()
+
+  if (normalized.length === 0) {
+    const empty = document.createElement('p')
+    empty.className = 'empty-state'
+    empty.textContent = '还没有项目，先完成第一个作品吧。'
+    projectList.append(empty)
+    projectStatus.textContent = '项目数量：0'
+    return
+  }
+
+  for (const project of normalized) {
+    projectList.append(createProjectCard(project))
+  }
+  projectStatus.textContent = `项目数量：${normalized.length}`
+}
+```
+
+代码解释：normalizeProjects 统一数据格式；replaceChildren 清空旧卡片；length 为 0 时显示空态并 return；for 循环追加卡片；最后更新数量。调用 renderProjects(projects) 的末行保留。
+
+按 Ctrl+S 保存，回浏览器 Ctrl+R 刷新，再做下方检查。
+
+### 5.6 逐项观察结果
+
+页面显示模板中三个作品与数量。打开 data.js，找到第一个项目的 summary，改成自己的描述，保存刷新后卡片文字应变化。再用 Ctrl+A 临时把 data.js 改为 export const projects = []，保存刷新，页面应显示空态和数量 0；立即 Ctrl+Z 恢复原数组，再保存刷新。不要把临时空数组提交为最终成果。两段检查分别回 PPT 第 26、31 页。
+
+### 5.7 写下本次改动
+
+在左侧打开 README.md，按 Ctrl+End 到文件末尾，新起一行追加下面这段。把示例中的说明改成你的实际操作，不要覆盖原有安装和运行说明。
+
+```markdown
+## 我的本课记录
+
+展示名：周小禾
+我修改的文件：填写实际文件名
+修改目的：填写希望用户看到的变化
+验证方法：填写自己实际执行的检查
+结果：填写页面变化或错误修复情况
+```
+
+这一步让下一位同学或未来的自己能理解本次修改。填完 Ctrl+S 保存。
+
+## 6. 停止网页，检查成果
+
+在当前 CMD 终端按 Ctrl+C，等提示符回来。在同一个终端逐条执行下列命令，每一条成功后再继续。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 检查本课自己编写的核心任务。
+npm.cmd run check:lesson
+```
+
+成功标志：正常完成；最后一项显示 READY: build found。失败时根据第一条错误回到代码修正，不改测试来绕过检查。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 检查工程约定的结构。
+npm.cmd run check
+```
+
+成功标志：正常完成；最后一项显示 READY: build found。失败时根据第一条错误回到代码修正，不改测试来绕过检查。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 运行已提供的测试。
+npm.cmd test
+```
+
+成功标志：正常完成；最后一项显示 READY: build found。失败时根据第一条错误回到代码修正，不改测试来绕过检查。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 生成 dist 部署文件。
+npm.cmd run build
+```
+
+成功标志：正常完成；最后一项显示 READY: build found。失败时根据第一条错误回到代码修正，不改测试来绕过检查。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 确认生成的网页入口存在。
+if exist "dist\index.html" (echo READY: build found) else (echo STOP: build missing)
+```
+
+成功标志：正常完成；最后一项显示 READY: build found。失败时根据第一条错误回到代码修正，不改测试来绕过检查。
+
+## 7. 提交本课分支
+
+本课沿用第一次设置的身份和远程地址。先确认当前分支：
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示当前分支名称。
+git branch --show-current
+```
+
+成功标志：应为 lesson-03，不符时先核对第 3 步。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 列出改动文件，检查是否只包含预期内容。
+git status --short
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 逐行查看已跟踪文件的变化，no-pager 让结果直接显示。
+git --no-pager diff
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 将当前工程的变更放入暂存区。
+git add .
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 检查将提交的文件摘要，不应包含 node_modules、dist 或凭据。
+git diff --cached --stat
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 把暂存内容保存为一个本地提交，m 后面是提交说明。
+git commit -m "feat: complete P1 lesson 03"
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示本地最新提交编号与说明，留待远程核对。
+git log -1 --oneline
+```
+
+成功标志：命令正常结束，没有错误。
+
+## 8. 推送到自己的远程仓库
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 切回个人主分支。
+git switch main
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 将本课完成的提交合入 main，历史分叉时停止。
+git merge --ff-only lesson-03
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示 fetch 和 push 地址，两者都应属于本人的成果仓库。
+git remote -v
+```
+
+成功标志：地址正确后才能推送。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 上传 main 的本地提交；首次的 u 参数建立远程跟踪关系。
+git push origin main
+```
+
+成功标志：推送成功，随后去 GitHub 核对。
+
+首次可能出现 Git Credential Manager 登录窗口，选择 Sign in with your browser，核对本人账号，完成登录和认证，再回终端等待。终端要求 Password 时，不反复输入 GitHub 登录密码；先检查凭据助手安装及登录账号。
+
+## 9. 核对远程，并再推送一次
+
+浏览器打开自己的 GitHub 仓库，刷新 Code 页并选择 main。应能直接看到 package.json 和本课文件。打开一个刚修改的文件，确认内容已更新。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示本地完整提交编号。
+git rev-parse HEAD
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 查询远程 main 的完整提交编号。
+git ls-remote origin refs/heads/main
+```
+
+成功标志：第一列提交号与上一条完全相同。
+
+现在打开 README.md，在末尾写“我已完成第二次修改并核对远程提交”，Ctrl+S 保存，然后在同一个 CMD 中执行：
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 只查看 README 的本次变化。
+git --no-pager diff -- README.md
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 只暂存 README 文件。
+git add README.md
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 为第二次修改建立新提交。
+git commit -m "docs: record second classroom update"
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 把新提交推送到同一个远程仓库。
+git push origin main
+```
+
+成功标志：命令正常结束，没有错误。
+
+刷新 GitHub 的 README 页面，应能看到新文字。日常开发就是修改、检查、add、commit、push，不需要每次重新 clone、init 或添加 origin。修改代码后需先重跑相应检查。
+
+## 10. 发布网站、下课与下次继续
+
+在自己 GitHub 仓库选择 Settings → Pages，Source 设为 GitHub Actions。到 Actions 打开 test-and-deploy-pages，确认 verify 和 deploy 成功，打开其部署网址。第一次在设置 Pages 前失败的运行，可设置后 Re-run all jobs。仓库代码页与 Pages 网站地址不同，作业分别提交两者以及最新 commit 编号。
+
+下次同一台电脑，VS Code 打开原 p1-portfolio，选择 Command Prompt，按第 4 步重新运行即可。第 2—6 课要先按第 3 步备份、导入并恢复自己的内容。数据库继续按后续项目安排；Ubuntu 部署见单独的 CMD 本机配套附录。
+
+## 附录：常见 CMD 卡点
+
+找不到 npm.cmd：安装 Node.js 后重开 CMD。找不到 package.json：先检查是否位于自己的 p1-portfolio；cd /d 可以同时换盘和目录。
+
+出现 #、$workRoot 或 Set-Location 无法识别：粘贴了 PowerShell 版，请回 CMD 版。反过来，PowerShell 不直接使用 rem、set /p 或 cd /d。
+
+代码框里的 %L 是交互式 CMD 写法。本手册要求直接粘贴到终端；自行改写批处理文件时，循环变量需写 %%L，调用 npm.cmd 等批处理还要使用 call。课堂先按终端操作，不另存为批处理运行。
+
+远程地址填错：先确认现在位于自己的工程，再按以下两框修正。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 清空变量后重新输入核对过的个人仓库地址。
+set "correctUrl="
+set /p "correctUrl=粘贴正确的个人仓库HTTPS地址: "
+```
+
+解释：先运行 set /p，等它提问，再粘贴地址回答。
+
+成功标志：本人地址输入完成后再执行下一框。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 修正远程地址后立即显示结果，核对属于本人。
+git remote set-url origin "%correctUrl%"
+git remote -v
+```
+
+成功标志：命令正常结束，没有错误。
+
+推送出现 rejected / non-fast-forward：可能远程已有别的提交，不强制覆盖。先取回历史供老师核对：
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 取回远程历史，不覆盖当前工作文件。
+git fetch origin
+```
+
+成功标志：命令正常结束，没有错误。
+
+运行平台：Windows 10/11 · CMD（命令提示符）。
+
+运行位置：自己的 p1-portfolio 工程目录。
+
+运行方法：点击 CMD 最后一行，复制本代码框并按 Enter。rem 是注释，可以一起复制。本框执行完、结果符合预期后，再运行下一框。
+
+```bat
+rem 显示最近分支历史，交给老师核对需要如何合并。
+git --no-pager log --oneline --graph --all -12
+```
+
+成功标志：命令正常结束，没有错误。
+
