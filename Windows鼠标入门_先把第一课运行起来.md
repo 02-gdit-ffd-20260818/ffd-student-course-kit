@@ -1,144 +1,206 @@
-# Windows 鼠标入门：先把第一课运行起来
+# Windows 鼠标入门：用 Git clone 领取并运行第一课
 
-这份说明替代原手册的“2. 领取模板、3. 准备工程、4. 运行初稿”。目标只有一个：在自己的电脑上看到第一课网页。第一次只用一个终端。
+这份说明替代原手册步骤 2—4。主流程是 Git clone 领取模板，再打开自己的工程运行。初次只用一个终端，每个命令框都有平台、位置和注释。
 
-## 1. 下载只含一个工程文件夹的初稿包
+## 1. 先打开可以输入命令的地方
 
-老师发送的文件名是“P1_第一课_直接打开版.zip”。这是第一课初稿，课堂要补写的代码仍然留空。
+运行平台：Windows 10/11。软件：VS Code。命令解释器：PowerShell。
 
-学生在线下载：[第一课直接打开包](https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit/raw/refs/heads/p1-guide-01-v1.2/P1_第一课_直接打开版.zip)。浏览器下载完成后，点击下载列表中该文件旁的文件夹图标，或选择“在文件夹中显示”。
+1. 双击桌面或开始菜单中的 Visual Studio Code。
+2. 点击顶部“终端 → 新建终端”。英文菜单是 Terminal → New Terminal。
+3. 如果顶部菜单折叠，点击“…”查找“终端”；也可以按 Ctrl+Shift+P，输入 Terminal: Create New Terminal，再选择同名命令。
+4. 下方出现可以输入文字的区域，这就是终端。若名称不是 PowerShell，点击终端右上方“+”旁的小箭头，选择 PowerShell。
+5. 鼠标点击终端最后一行。后面所有 powershell 代码框都输入在这里，不能输入到浏览器地址栏或 index.html 编辑区。
 
-如果老师用 U 盘或教学平台发送同名 ZIP，直接找到这个 ZIP 即可。
+PS C:\…> 是电脑显示的提示符，不用照抄。# 开头的行是注释，解释下一条命令，可以和命令一起粘贴。每次只复制一个代码框，按 Enter 执行，看到本步骤成功标志再继续。多行 if/else 代码框必须一起复制，不拆成独立命令。
 
-## 2. 解压，然后复制里面的 p1-portfolio 文件夹
+如果当前终端已经运行着网页，先按 Ctrl+C，等 PS 提示符出现后再输入下面的命令。
 
-在 Windows 文件夹窗口中找到 ZIP，按以下顺序操作：
+## 2. 检查 Git 和 Node 已安装
 
-1. 鼠标右键点击“P1_第一课_直接打开版.zip”。
-2. 选择“全部解压缩”。如果没有这个菜单，双击 ZIP 后查看窗口上方的“全部解压缩”。第三方解压软件可以选择“解压到同名文件夹”。
-3. 弹出解压窗口后，保留默认位置，点击“提取”或“解压缩”。
-4. 解压完成后打开普通文件夹，里面应该只有一个主要工程文件夹，名字是 p1-portfolio。
-5. 单击 p1-portfolio 一次，按 Ctrl+C。这里只复制整个文件夹，暂时不用进入它。
+运行平台：Windows PowerShell。运行位置：VS Code 下方终端，当前目录可以任意。运行方法：复制本代码框，粘贴到最后一行并按 Enter。
 
-判断：不要在带有“全部解压缩”按钮的压缩包窗口里编辑代码。先完成解压，再复制普通文件夹里的 p1-portfolio。
-
-## 3. 把它放进统一的上课位置
-
-仍然在 Windows 文件夹窗口中操作。这里的“地址栏”是窗口上方显示当前文件夹位置的长条，右边的“搜索”框不是地址栏。
-
-1. 按 Ctrl+N，打开另一个文件夹窗口。
-2. 按 Ctrl+L，选中上方地址栏。
-3. 输入下面这一小段文字，然后按 Enter。它是地址，不是终端命令。
-
-```text
-%USERPROFILE%
+```powershell
+# 检查 Git；用于从 GitHub 领取代码，以及后续提交和推送。
+git --version
+# 检查 Node.js；本课程统一使用 v24 系列。
+node --version
+# 检查 npm；npm.cmd 是 Windows 下的命令入口。
+npm.cmd --version
 ```
 
-4. 窗口会进入你自己的 Windows 用户文件夹。例如这台电脑是 C:\Users\niewe。其他学生的名字可能不同，不需要照抄 niewe。
-5. 如果列表中已经有 web-work，双击打开它。如果没有，按 Ctrl+Shift+N，新建文件夹，输入 web-work，再按 Enter，然后双击打开。
-6. 按 Ctrl+V，把刚才复制的 p1-portfolio 放进来。等待复制结束。
+成功标志：三条命令各显示一个版本号。
 
-做到这里，你应该看到：自己的用户文件夹里有 web-work，web-work 里面有 p1-portfolio。
+若出现“无法识别”：先完成相应软件安装，关闭并重开 VS Code，再检查。安装入口：[Git for Windows](https://git-scm.com/downloads/win)、[Node.js](https://nodejs.org/en/download)、[VS Code](https://code.visualstudio.com/Download)。Git 安装保留 Git Credential Manager；Node 选择 24 系列。安装准备由教师课前统一安排。
 
-如果这里已经有 p1-portfolio，停止粘贴，不选择“替换文件”。它可能是你之前的成果，直接用下一步打开它，先核对进度。
+## 3. 建立并进入统一的上课文件夹
 
-## 4. 用 VS Code 打开整个工程
+运行平台：Windows PowerShell。运行位置：仍是 VS Code 下方同一个终端，起始目录任意。运行方法：整框复制，粘贴后按 Enter。
 
-1. 在桌面或开始菜单中打开 Visual Studio Code，通常简称 VS Code。
-2. 点击顶部“文件”，再点击“打开文件夹”。英文界面是 File → Open Folder。
-3. 弹出选择窗口后，按 Ctrl+L，在地址栏输入下面的路径，再按 Enter：
+```powershell
+# $workRoot 是一个临时名字，用来记住上课文件夹的完整地址。
+# $env:USERPROFILE 会自动换成本人的 Windows 用户文件夹。
+# Join-Path 把用户目录与 web-work 拼接起来，适用不同用户名。
+$workRoot = Join-Path $env:USERPROFILE 'web-work'
+# 建立 web-work；Directory 表示文件夹，Force 在这里允许复用已有目录。
+New-Item -ItemType Directory -Force -Path $workRoot
+# 进入 web-work；后面的领取操作会把文件下载到这里。
+Set-Location $workRoot
+# 显示现在的完整路径，方便检查自己在哪里。
+Get-Location
+```
+
+成功标志：最后显示的路径以 web-work 结尾。例如这台电脑是 C:\Users\niewe\web-work；学生用户名不同正常，不需要修改命令。
+
+## 4. 用 git clone 领取第一课模板
+
+运行平台：Windows PowerShell。运行位置：同一个终端，当前目录必须是刚才的 web-work。运行方法：复制下面整个代码框，粘贴并按 Enter；等待下载结束。
+
+```powershell
+# 保存老师的真实资源仓库地址。这一行直接复制，不改成自己的仓库。
+$repo = 'https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git'
+# clone 表示从远程下载仓库。
+# --branch 指定第一课分支 p1-guide-01-v1.2。
+# --single-branch 只下载这一课分支，--depth 1 只取它的最新提交。
+# 最后的 kit-01-v12 是本次资源保存在电脑上的文件夹名称。
+git clone --branch p1-guide-01-v1.2 --single-branch --depth 1 $repo kit-01-v12
+```
+
+成功标志：下载结束并重新出现 PS 提示符；web-work 里新增 kit-01-v12。公开教学资源通常不需要登录就能领取，后续推送个人成果时才需要自己的账号权限。
+
+如果提示 destination path already exists，说明这个目录已经存在。不要反复 clone 或删除它，先检查是不是之前领取的第一课资源。若是，继续下一步核对；若不是，让老师协助检查。
+
+运行平台：Windows PowerShell。运行位置：仍是 web-work。运行方法：复制下面两条带注释的命令，粘贴后按 Enter。
+
+```powershell
+# 检查第一课初稿中是否有 package.json，True 表示入口文件存在。
+Test-Path './kit-01-v12/starter/package.json'
+# 用 Windows 文件资源管理器打开当前的 web-work，便于用鼠标查看。
+# 点号 . 表示“当前文件夹”。
+explorer.exe .
+```
+
+成功标志：终端显示 True，并弹出 web-work 文件夹窗口。False 表示领取未成功或当前目录不对，先回看步骤 3—4。
+
+## 5. 用鼠标把初稿复制成自己的工程
+
+操作平台：Windows 文件资源管理器。本步骤只点鼠标和使用快捷键，不输入终端命令。
+
+你现在看到的 kit-01-v12 是“老师的资源包”。里面的 starter 是“本课初稿”。接下来建立你自己的 p1-portfolio，后续开发和提交都在这个工程里进行。
+
+1. 在刚弹出的 web-work 窗口里，双击 kit-01-v12。
+2. 找到 starter 文件夹，单击选中，按 Ctrl+C 复制。只复制 starter，不复制整个 kit-01-v12。
+3. 按 Alt+上方向键返回上一层 web-work。
+4. 先看这里是否已有 p1-portfolio。如果已有，停止复制，打开原工程核对，保留之前的成果。
+5. 首次且目标不存在时，按 Ctrl+V，把 starter 粘贴到 web-work。
+6. 选中新粘贴的 starter，按 F2，把名称改成 p1-portfolio，按 Enter。
+
+成功标志：web-work 里并列出现 kit-01-v12 和 p1-portfolio。前者用来领取和查材料，后者是自己的长期工程。不要把两个文件夹相互套在里面。
+
+这一步复制 starter，会保留初稿中的 .github 发布配置，同时不会把 kit 外层老师的 .git 仓库历史复制进个人工程。个人 Git 仓库稍后按全流程手册首次初始化。
+
+## 6. 用 VS Code 打开自己的工程
+
+操作平台：Windows 桌面和 VS Code；本步骤用菜单打开文件夹。
+
+1. 回 VS Code，点击“文件 → 打开文件夹”（File → Open Folder）。
+2. 弹出窗口后，在上方地址栏输入以下地址并按 Enter。这是文件夹地址，不是终端命令。
 
 ```text
 %USERPROFILE%\web-work\p1-portfolio
 ```
 
-4. 点击窗口下方的“选择文件夹”。如果这个对话框没有展开 %USERPROFILE%，先关闭它，在普通文件夹窗口打开 p1-portfolio，Ctrl+L 后 Ctrl+C 复制真实地址，再回选择窗口粘贴真实地址。
-5. 如果 VS Code 询问是否信任，核对路径确实是自己刚解压的课堂工程，再由你选择信任。
+3. 点击“选择文件夹”。如果对话框没有展开 %USERPROFILE%，去普通文件夹窗口打开 p1-portfolio，按 Ctrl+L、Ctrl+C 复制真实地址，再粘贴到选择窗口。
+4. 如果询问是否信任，核对确实是自己的课堂工程，再由你选择信任。
 
-成功标志：VS Code 左边直接列出 index.html、styles.css、package.json、README.md 等文件。看到这些就表示工程打开正确。
+成功标志：VS Code 左边直接显示 index.html、styles.css、package.json、README.md 等。只看到一个 p1-portfolio 文件夹，说明打开的是上一级，需要重新选中里面的工程。
 
-如果左边只有一个 p1-portfolio 文件夹，说明打开的是上一级目录，重新选择“文件 → 打开文件夹”，进入 p1-portfolio 再选择。如果只出现一个代码标签、左边没有工程文件列表，说明你打开了单个文件，也要重新打开整个文件夹。
+打开工程可能会重新加载 VS Code。再次点击“终端 → 新建终端”，选择 PowerShell。前面用于领取的终端到这里可以关闭，接下来只使用工程里的这一个终端。
 
-## 5. 打开一个终端
+## 7. 在工程里安装依赖并检查初稿
 
-“终端”就是 VS Code 下方用来输入运行指令的区域。你不需要另外打开一个 PowerShell 软件窗口。
-
-1. 在 VS Code 顶部点击“终端 → 新建终端”。英文界面是 Terminal → New Terminal。
-2. 如果顶部找不到“终端”，看看菜单栏的“…”里有没有，或者按 Ctrl+Shift+P，输入 Terminal: Create New Terminal，再选择同名命令。
-3. VS Code 下方会出现一个区域，最后一行通常类似下面这样。这一行是电脑显示给你的，不要照抄输入。
-
-```text
-PS C:\Users\niewe\web-work\p1-portfolio>
-```
-
-只需核对路径结尾是 p1-portfolio。你的用户名可以不同。
-
-如果终端不是 PowerShell，在终端区域右上方找到“+”旁边的小箭头，选择 PowerShell。第一次只保留这个终端即可。
-
-如果路径结尾不是 p1-portfolio，先回第 4 步确认打开的是整个工程文件夹。工程打开正确后，关闭这个终端，再点击“新建终端”。
-
-## 6. 输入第一条命令，安装运行需要的工具包
-
-鼠标点击下方终端里最后一行提示符的后面。复制下面这一行，粘贴进去，然后按 Enter：
+运行平台：Windows PowerShell。运行位置：VS Code 下方的工程终端，初始目录可以任意。运行方法：复制本代码框，粘贴后按 Enter。
 
 ```powershell
+# 重新明确进入自己的工程，不依赖之前终端里的临时变量。
+Set-Location (Join-Path $env:USERPROFILE 'web-work/p1-portfolio')
+# 确认当前目录包含工程入口文件。
+Test-Path ./package.json
+```
+
+成功标志：路径以 p1-portfolio 结尾，检查结果为 True。否则停止，回第 6 步检查打开的文件夹。
+
+运行平台：Windows PowerShell。运行位置：同一个终端，p1-portfolio。运行方法：复制本代码框，粘贴后按 Enter，等待重新出现 PS 提示符。
+
+```powershell
+# 按 package-lock.json 约定的版本安装项目依赖。
+# ci 是安装命令；第一次或依赖改变后执行，通常需要网络。
 npm.cmd ci
 ```
 
-意思：按照这个项目约定的版本，安装运行所需的依赖。cmd 是 Windows 下使用的命令入口，ci 是 npm 的安装命令。通常第一次运行，或者老师更新了依赖时才需要执行。
+成功标志：依赖安装成功结束。更新提醒或 funding 提示不代表失败；出现 npm ERR、npm error 或红色异常先停止，找出第一条错误。
 
-输入后会出现一些文字。等它结束，重新出现 PS 开头的提示符，再做下一步。普通的更新提示或 funding 提示不等于失败；看到 npm ERR、npm error 或红色异常时，先停下来。
-
-如果提示“无法识别 npm.cmd”：说明 Node.js 没有安装好，或安装后没有重开 VS Code。请老师先统一安装 Node.js 24，再关闭并重开 VS Code。Node 安装入口：[Node.js 官方下载](https://nodejs.org/en/download)。
-
-如果提示找不到 package.json：回到第 4 步，确认左侧能直接看到这个文件，而且终端路径结尾是 p1-portfolio。
-
-## 7. 输入第二条命令，启动网页
-
-仍然在刚才同一个终端中，粘贴下面这一行，按 Enter：
+运行平台：Windows PowerShell。运行位置：同一个终端，p1-portfolio。运行方法：粘贴下面代码框并按 Enter。
 
 ```powershell
+# 检查初稿文件是否齐全；此时允许课堂 TODO 还没完成。
+npm.cmd run check:starter
+```
+
+成功标志：起步检查通过。若失败，按错误信息核对文件，不跳过检查。
+
+## 8. 启动网页
+
+运行平台：Windows PowerShell。运行位置：同一个终端，p1-portfolio。运行方法：粘贴下面代码框，按 Enter，保持它运行。
+
+```powershell
+# 运行本地开发服务，终端持续占用是正常现象。
 npm.cmd run dev
 ```
 
-意思：运行工程里的 dev 开发命令，让电脑临时提供一个网页地址。
+成功标志：出现 Local 地址，例如 http://127.0.0.1:5173/。复制终端实际显示的网址，粘贴到浏览器地址栏打开，看到“你好，我是林晓”的初稿。
 
-成功后会看到类似下面的文字：
+此时不再出现新 PS 提示符，是因为网页服务正在运行。保持终端打开。不要把浏览器地址当成要在终端输入的命令。
 
-```text
-Local: http://127.0.0.1:5173/
-```
+## 9. 改一个名字，验证自己会操作
 
-这时终端不再出现新的 PS 提示符，是正常现象。它正在运行网页，保持这个终端打开。
+操作平台：VS Code 代码编辑区与浏览器。
 
-打开浏览器，在浏览器地址栏输入上面显示的网址，按 Enter。请以终端实际显示的地址为准。
+1. 在 VS Code 左侧单击 index.html。
+2. 按 Ctrl+F，搜索“你好，我是林晓”，按 Esc 退出搜索。
+3. 选中代码里的“林晓”，换成自己的公开展示名，保留 h1 标签。
+4. 按 Ctrl+S 保存，回浏览器按 Ctrl+R 刷新。
 
-看到第一课“你好，我是林晓”的初稿页面，就表示模板领取、工程准备和运行已经完成。此时“关于我”和技能列表的任务尚未补齐，是课堂初稿的正常状态。
+成功标志：网页出现新名字。随后进入第一课全流程手册第 5 步，按“原文、替换代码、检查结果”完成 HTML 与 CSS 任务。
 
-## 8. 改一句文字，确认自己会开发了
+## 10. 停止网页，在同一个终端检查和提交
 
-1. 回到 VS Code，单击左侧 index.html。
-2. 按 Ctrl+F，输入“你好，我是林晓”。
-3. 找到后按 Esc 退出搜索，选中代码中“林晓”两个字，换成自己的展示名。保留 h1 标签不变。
-4. 按 Ctrl+S 保存。
-5. 回浏览器按 Ctrl+R 刷新。看到名字变化，说明“修改代码、保存、看效果”已经跑通。
+操作平台：VS Code 下方 PowerShell 终端。运行方式：在正在运行网页的终端按 Ctrl+C。Windows 若继续询问是否终止批处理，输入 Y 并按 Enter。等 PS 提示符出现后，才能输入检查或 Git 命令。
 
-后面再按原实操手册第 5 步补写 HTML 和 CSS。本课初稿不会自动刷新浏览器，所以每次修改后都按“Ctrl+S 保存，再 Ctrl+R 刷新”。
-
-## 9. 什么时候才需要第二个终端
-
-第一次练习用一个终端就够了。准备执行检查或 Git 命令时，回到正在运行网页的终端，按 Ctrl+C。网页服务停止后，PS 提示符重新出现，就可以输入其他命令。
-
-以后想再次运行网页，在同一个终端重新输入：
+运行平台：Windows PowerShell。运行位置：自己的 p1-portfolio。运行方法：完成本课代码后，粘贴本代码框并按 Enter。
 
 ```powershell
+# 检查本课 HTML 等核心任务是否完成；缺少 TODO 对应实现时会失败。
+npm.cmd run check:lesson
+```
+
+成功标志：本课验收通过。然后按全流程手册第 6—10 步完成测试、建自己的 Git 仓库、提交和推送。自己的 origin 应指向自己的 p1-portfolio，不是老师的 ffd-student-course-kit。
+
+要再次启动网页，在同一个终端运行：
+
+运行平台：Windows PowerShell。运行位置：自己的 p1-portfolio。运行方法：粘贴后按 Enter。
+
+```powershell
+# 再次启动本地网页，保存代码后回浏览器刷新查看。
 npm.cmd run dev
 ```
 
-原手册里的“终端 A”和“终端 B”是一种同时运行网页、同时输入其他命令的办法。你熟悉后再使用。现在看到原手册要求“在 B 中执行”，就理解为“先在当前终端按 Ctrl+C 停止网页，等提示符出现后执行”。暂时不增加第二个终端。
+## 备用：网络无法领取时使用 ZIP
 
-## 给老师的课堂组织提示
+课堂主流程使用 Git clone。网络故障时，老师可发送“P1_第一课_直接打开版.zip”。右键“全部解压缩”，把里面的 p1-portfolio 放到用户目录下 web-work，再从第 6 步继续。已有同名个人工程时不覆盖。ZIP 是临时领取方式，后续仍学习 Git 提交与推送。
 
-课前统一安装 Node.js 24 和 VS Code。第一轮只让学生完成上述步骤 1—7，以“浏览器打开初稿”为验收。第二轮只改一个名字，确认每个人都能保存和刷新。完成这两轮后，再回 PPT 进入 HTML 与 CSS 的开发任务。
+## 给老师的检查点
 
-本入门包仍保留原有起步代码、TODO、测试和 GitHub 发布配置。后续个人工程路径仍是用户目录下的 web-work/p1-portfolio，可以接着使用原来的提交、推送和下一课衔接手册。
+第一轮停在步骤 4，确认每个人克隆成功并显示 True。第二轮停在步骤 6，确认 VS Code 左边打开正确工程。第三轮停在步骤 8，看见初稿后才进入代码教学。账号、Git、Node 安装和网络尽量课前准备。
+
+第 2—6 课使用各自完整手册的领取、备份与导入流程，继续保留同一个个人 Git 历史。PPT 仍主导课堂顺序，实操手册负责说明具体怎么点、怎么输入和怎么检查。
