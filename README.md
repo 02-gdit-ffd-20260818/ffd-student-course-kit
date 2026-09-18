@@ -9,3 +9,8 @@
 - [P2 Ubuntu 完整部署](docs/p2-ubuntu.md)
 - [P3 Ubuntu 完整部署](docs/p3-ubuntu.md)
 - [P4 Ubuntu 完整部署](docs/p4-ubuntu.md)
+
+
+## P2课程博客v3预览开发版
+
+本分支新增[P2课程博客及Windows实操手册](P2-course-v3/README.md)，包括真实SQLite、注册登录、文字评论。网页阶段9—11目前仅为页面预览。原固定分支与标签保持。

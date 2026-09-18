@@ -1,0 +1,34 @@
+{
+  "name": "ffd-p2-blog",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:api": "node --env-file-if-exists=.env --watch server/course-index.js",
+    "start:api": "node --env-file-if-exists=.env server/course-index.js",
+    "test:component": "vitest run",
+    "build": "vite build",
+    "test:course": "node --test tests/course.test.mjs",
+    "setup:course": "node scripts/setup-course.mjs",
+    "test": "npm run test:course && npm run test:component",
+    "db:inspect": "node --env-file-if-exists=.env scripts/inspect-course-db.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mysql2": "^3.15.0",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0",
+    "@netlify/database": "latest",
+    "serverless-http": "latest"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.0.0"
+  }
+}
