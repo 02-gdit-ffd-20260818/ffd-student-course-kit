@@ -1,0 +1,31 @@
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(80) NOT NULL UNIQUE,
+  display_name VARCHAR(120) NOT NULL,
+  role ENUM('member','reviewer') NOT NULL,
+  password_salt CHAR(32) NOT NULL,
+  password_hash CHAR(128) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS members (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(40) NOT NULL,
+  role_title VARCHAR(60) NOT NULL,
+  cohort VARCHAR(60) NOT NULL DEFAULT '',
+  location VARCHAR(80) NOT NULL DEFAULT '',
+  bio VARCHAR(300) NOT NULL DEFAULT '',
+  skills_json JSON NOT NULL,
+  interests_json JSON NOT NULL,
+  avatar VARCHAR(500) NOT NULL DEFAULT '',
+  email VARCHAR(254) NOT NULL UNIQUE,
+  status ENUM('draft','submitted','approved','rejected') NOT NULL DEFAULT 'submitted',
+  owner_id BIGINT UNSIGNED NULL,
+  reviewed_by BIGINT UNSIGNED NULL,
+  review_note VARCHAR(300) NOT NULL DEFAULT '',
+  version INT UNSIGNED NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_members_owner FOREIGN KEY(owner_id) REFERENCES users(id),
+  CONSTRAINT fk_members_reviewer FOREIGN KEY(reviewed_by) REFERENCES users(id),
+  INDEX idx_members_status(status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

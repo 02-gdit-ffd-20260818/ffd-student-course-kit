@@ -1,0 +1,946 @@
+diff --git a/README.md b/README.md
+index a338b83..380d45b 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,5 @@
+-# 第07课 教师参考答案
++# 第08课 学生起点
+ 
+-完整项目：长风成卷 v1.0。主修改文件：`src/components/ArticleCard.vue`。
++本课任务：恢复空标题校验；恢复文章持久化。主文件：`src/services/articleEditorService.js`。页面能启动，待完成规则的对应测试可能失败，先读失败说明再补任务。其余功能是老师提供的工程基础，不要求全部手写。
+ 
+-安装运行见项目统一实操手册；先启动本地，自动测试、构建通过后发布。老师与学生均不要直接使用教师生产API。
++完整步骤见领取资料 `docs/lesson-08.md`。
+diff --git a/package-lock.json b/package-lock.json
+index 0a2b3fd..d6b0a07 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,14 +1,16 @@
+ {
+   "name": "ffd-p2-blog",
+-  "version": "1.0.0",
++  "version": "1.1.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "ffd-p2-blog",
+-      "version": "1.0.0",
++      "version": "1.1.0",
+       "dependencies": {
+-        "vue": "^3.5.0"
++        "pinia": "^3.0.0",
++        "vue": "^3.5.0",
++        "vue-router": "^4.5.0"
+       },
+       "devDependencies": {
+         "@vitejs/plugin-vue": "^6.0.0",
+@@ -1106,6 +1108,39 @@
+         "@vue/shared": "3.5.42"
+       }
+     },
++    "node_modules/@vue/devtools-api": {
++      "version": "7.7.10",
++      "resolved": "https://registry.npmjs.org/@vue/devtools-api/-/devtools-api-7.7.10.tgz",
++      "integrity": "sha512-KxtEpUOOpFz/qOGRrAwA36QF7DqIA+FXgCYit9mk9wjbaZt0sXOFz81ElOZtKA4HbWHUdwNjZHBFsFFyp5BZiA==",
++      "license": "MIT",
++      "dependencies": {
++        "@vue/devtools-kit": "^7.7.10"
++      }
++    },
++    "node_modules/@vue/devtools-kit": {
++      "version": "7.7.10",
++      "resolved": "https://registry.npmjs.org/@vue/devtools-kit/-/devtools-kit-7.7.10.tgz",
++      "integrity": "sha512-3WNi2Kq4tbpVbmhml7RiphmAt0279oh3fKNeWMQIrltfX8Q91b4i5PL8DtyNKdwmcsGrV4fg+erwWOmD05CLIw==",
++      "license": "MIT",
++      "dependencies": {
++        "@vue/devtools-shared": "^7.7.10",
++        "birpc": "^2.3.0",
++        "hookable": "^5.5.3",
++        "mitt": "^3.0.1",
++        "perfect-debounce": "^1.0.0",
++        "speakingurl": "^14.0.1",
++        "superjson": "^2.2.2"
++      }
++    },
++    "node_modules/@vue/devtools-shared": {
++      "version": "7.7.10",
++      "resolved": "https://registry.npmjs.org/@vue/devtools-shared/-/devtools-shared-7.7.10.tgz",
++      "integrity": "sha512-wOPslzB8vTvpxwdaOcR2qAbwmuSP0L+rhpoC6Cf56V3Jip+HWb7PQQXOUPgBNQARpXsbQX/+mvi8kKucmBGRwQ==",
++      "license": "MIT",
++      "dependencies": {
++        "rfdc": "^1.4.1"
++      }
++    },
+     "node_modules/@vue/reactivity": {
+       "version": "3.5.42",
+       "resolved": "https://registry.npmjs.org/@vue/reactivity/-/reactivity-3.5.42.tgz",
+@@ -1164,6 +1199,15 @@
+         "node": ">=12"
+       }
+     },
++    "node_modules/birpc": {
++      "version": "2.9.0",
++      "resolved": "https://registry.npmjs.org/birpc/-/birpc-2.9.0.tgz",
++      "integrity": "sha512-KrayHS5pBi69Xi9JmvoqrIgYGDkD6mcSe/i6YKi3w5kekCLzrX4+nawcXqrj2tIp50Kw/mT/s3p+GVK0A0sKxw==",
++      "license": "MIT",
++      "funding": {
++        "url": "https://github.com/sponsors/antfu"
++      }
++    },
+     "node_modules/cac": {
+       "version": "6.7.14",
+       "resolved": "https://registry.npmjs.org/cac/-/cac-6.7.14.tgz",
+@@ -1201,6 +1245,18 @@
+         "node": ">= 16"
+       }
+     },
++    "node_modules/copy-anything": {
++      "version": "4.1.0",
++      "resolved": "https://registry.npmjs.org/copy-anything/-/copy-anything-4.1.0.tgz",
++      "integrity": "sha512-ufbM3smX/Jbnpk5wcQjzd1MgBpzmqfNETUAyZNrGwU9foRlyHoGzMMBBCRzEhQLBjZfFDE1W2ufPXX2vdWkV8Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/mesqueeb"
++      }
++    },
+     "node_modules/csstype": {
+       "version": "3.2.3",
+       "resolved": "https://registry.npmjs.org/csstype/-/csstype-3.2.3.tgz",
+@@ -1349,6 +1405,12 @@
+         "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
+       }
+     },
++    "node_modules/hookable": {
++      "version": "5.5.3",
++      "resolved": "https://registry.npmjs.org/hookable/-/hookable-5.5.3.tgz",
++      "integrity": "sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==",
++      "license": "MIT"
++    },
+     "node_modules/js-tokens": {
+       "version": "9.0.1",
+       "resolved": "https://registry.npmjs.org/js-tokens/-/js-tokens-9.0.1.tgz",
+@@ -1372,6 +1434,12 @@
+         "@jridgewell/sourcemap-codec": "^1.5.5"
+       }
+     },
++    "node_modules/mitt": {
++      "version": "3.0.1",
++      "resolved": "https://registry.npmjs.org/mitt/-/mitt-3.0.1.tgz",
++      "integrity": "sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==",
++      "license": "MIT"
++    },
+     "node_modules/ms": {
+       "version": "2.1.3",
+       "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
+@@ -1414,6 +1482,12 @@
+         "node": ">= 14.16"
+       }
+     },
++    "node_modules/perfect-debounce": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/perfect-debounce/-/perfect-debounce-1.0.0.tgz",
++      "integrity": "sha512-xCy9V055GLEqoFaHoC1SoLIaLmWctgCUaBaWxDZ7/Zx4CTyX7cJQLJOok/orfjZAh9kEYpjJa4d0KcJmCbctZA==",
++      "license": "MIT"
++    },
+     "node_modules/picocolors": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+@@ -1434,6 +1508,27 @@
+         "url": "https://github.com/sponsors/jonschlinkert"
+       }
+     },
++    "node_modules/pinia": {
++      "version": "3.0.4",
++      "resolved": "https://registry.npmjs.org/pinia/-/pinia-3.0.4.tgz",
++      "integrity": "sha512-l7pqLUFTI/+ESXn6k3nu30ZIzW5E2WZF/LaHJEpoq6ElcLD+wduZoB2kBN19du6K/4FDpPMazY2wJr+IndBtQw==",
++      "license": "MIT",
++      "dependencies": {
++        "@vue/devtools-api": "^7.7.7"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/posva"
++      },
++      "peerDependencies": {
++        "typescript": ">=4.5.0",
++        "vue": "^3.5.11"
++      },
++      "peerDependenciesMeta": {
++        "typescript": {
++          "optional": true
++        }
++      }
++    },
+     "node_modules/postcss": {
+       "version": "8.5.28",
+       "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.28.tgz",
+@@ -1462,6 +1557,12 @@
+         "node": "^10 || ^12 || >=14"
+       }
+     },
++    "node_modules/rfdc": {
++      "version": "1.4.1",
++      "resolved": "https://registry.npmjs.org/rfdc/-/rfdc-1.4.1.tgz",
++      "integrity": "sha512-q1b3N5QkRUWUl7iyylaaj3kOpIT0N2i9MqIEQXP73GVsN9cw3fdx8X63cEmWhJGi2PPCF23Ijp7ktmd39rawIA==",
++      "license": "MIT"
++    },
+     "node_modules/rollup": {
+       "version": "4.63.1",
+       "resolved": "https://registry.npmjs.org/rollup/-/rollup-4.63.1.tgz",
+@@ -1524,6 +1625,15 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/speakingurl": {
++      "version": "14.0.1",
++      "resolved": "https://registry.npmjs.org/speakingurl/-/speakingurl-14.0.1.tgz",
++      "integrity": "sha512-1POYv7uv2gXoyGFpBCmpDVSNV74IfsWlDW216UPjbWufNf+bSU6GdbDsxdcxtfwb4xlI3yxzOTKClUosxARYrQ==",
++      "license": "BSD-3-Clause",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/stackback": {
+       "version": "0.0.2",
+       "resolved": "https://registry.npmjs.org/stackback/-/stackback-0.0.2.tgz",
+@@ -1551,6 +1661,18 @@
+         "url": "https://github.com/sponsors/antfu"
+       }
+     },
++    "node_modules/superjson": {
++      "version": "2.2.6",
++      "resolved": "https://registry.npmjs.org/superjson/-/superjson-2.2.6.tgz",
++      "integrity": "sha512-H+ue8Zo4vJmV2nRjpx86P35lzwDT3nItnIsocgumgr0hHMQ+ZGq5vrERg9kJBo5AWGmxZDhzDo+WVIJqkB0cGA==",
++      "license": "MIT",
++      "dependencies": {
++        "copy-anything": "^4"
++      },
++      "engines": {
++        "node": ">=16"
++      }
++    },
+     "node_modules/tinybench": {
+       "version": "2.9.0",
+       "resolved": "https://registry.npmjs.org/tinybench/-/tinybench-2.9.0.tgz",
+@@ -1806,6 +1928,27 @@
+         }
+       }
+     },
++    "node_modules/vue-router": {
++      "version": "4.6.4",
++      "resolved": "https://registry.npmjs.org/vue-router/-/vue-router-4.6.4.tgz",
++      "integrity": "sha512-Hz9q5sa33Yhduglwz6g9skT8OBPii+4bFn88w6J+J4MfEo4KRRpmiNG/hHHkdbRFlLBOqxN8y8gf2Fb0MTUgVg==",
++      "license": "MIT",
++      "dependencies": {
++        "@vue/devtools-api": "^6.6.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/posva"
++      },
++      "peerDependencies": {
++        "vue": "^3.5.0"
++      }
++    },
++    "node_modules/vue-router/node_modules/@vue/devtools-api": {
++      "version": "6.6.4",
++      "resolved": "https://registry.npmjs.org/@vue/devtools-api/-/devtools-api-6.6.4.tgz",
++      "integrity": "sha512-sGhTPMuXqZ1rVOk32RylztWkfXTRhuS7vgAKv0zjqk8gbsHkJ7xfFf+jbySxt7tWObEJwyKaHMikV/WGDiQm8g==",
++      "license": "MIT"
++    },
+     "node_modules/why-is-node-running": {
+       "version": "2.3.0",
+       "resolved": "https://registry.npmjs.org/why-is-node-running/-/why-is-node-running-2.3.0.tgz",
+diff --git a/package.json b/package.json
+index 59d7ebd..776d3b7 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "ffd-p2-blog",
+-  "version": "1.0.0",
++  "version": "1.1.0",
+   "private": true,
+   "type": "module",
+   "engines": {
+@@ -15,7 +15,9 @@
+     "build": "vite build"
+   },
+   "dependencies": {
+-    "vue": "^3.5.0"
++    "pinia": "^3.0.0",
++    "vue": "^3.5.0",
++    "vue-router": "^4.5.0"
+   },
+   "devDependencies": {
+     "@vitejs/plugin-vue": "^6.0.0",
+diff --git a/scripts/check-project.mjs b/scripts/check-project.mjs
+index 3b8f941..16b6952 100644
+--- a/scripts/check-project.mjs
++++ b/scripts/check-project.mjs
+@@ -6,10 +6,14 @@ const files = {
+   card: await readFile('src/components/ArticleCard.vue', 'utf8'),
+   shell: await readFile('src/components/AppShell.vue', 'utf8'),
+   netlify: await readFile('netlify.toml', 'utf8'),
++  router: await readFile('src/router.js', 'utf8'),
++  store: await readFile('src/stores/articles.js', 'utf8'),
++  form: await readFile('src/views/ArticleFormView.vue', 'utf8'),
++  articlesComposable: await readFile('src/composables/useArticles.js', 'utf8'),
+ }
+ 
+ const rules = [
+-  ['App 使用生命周期加载数据', /onMounted/.test(files.app)],
++  ['组合式函数使用生命周期加载数据', /onMounted/.test(files.articlesComposable)],
+   ['卡片通过 props 接收文章', /defineProps/.test(files.card)],
+   ['卡片通过 emit 报告意图', /defineEmits/.test(files.card)],
+   ['页面框架使用命名插槽', /slot name="navigation"/.test(files.shell)],
+@@ -18,11 +22,14 @@ const rules = [
+   ['列表处理 error 与重试', /status === 'error'/.test(files.list) && /retry/.test(files.list)],
+   ['Netlify 指向 dist', /publish = "dist"/.test(files.netlify)],
+   ['Netlify 配置 SPA fallback', /status = 200/.test(files.netlify)],
++  ['Router 包含动态编辑路由', /:id\/edit/.test(files.router)],
++  ['Pinia store 集中保存文章', /defineStore/.test(files.store)],
++  ['表单使用 v-model 与字段错误', /v-model/.test(files.form) && /field-error/.test(files.form)],
+ ]
+ 
+ const failures = rules.filter(([, passed]) => !passed).map(([name]) => name)
+ if (failures.length) {
+-  console.error(`P2 v1.0 结构检查失败：\n- ${failures.join('\n- ')}`)
++  console.error(`P2 v1.1 结构检查失败：\n- ${failures.join('\n- ')}`)
+   process.exit(1)
+ }
+-console.log(`P2 v1.0 结构检查通过：${rules.length} 项规则全部满足。`)
++console.log(`P2 v1.1 结构检查通过：${rules.length} 项规则全部满足。`)
+diff --git a/src/App.vue b/src/App.vue
+index 0da4350..e97e9c7 100644
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -1,88 +1,15 @@
+ <script setup>
+-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+ import AppShell from './components/AppShell.vue'
+-import ArticleDetail from './components/ArticleDetail.vue'
+-import ArticleList from './components/ArticleList.vue'
+-import { loadArticles } from './services/articleLoader.js'
+-import { filterArticlesByTag, findArticleBySlug } from './services/articleService.js'
+-import { parseHash } from './services/routeService.js'
+-
+-const articles = ref([])
+-const status = ref('loading')
+-const errorMessage = ref('')
+-const route = ref(parseHash(window.location.hash))
+-
+-const visibleArticles = computed(() => route.value.name === 'tag'
+-  ? filterArticlesByTag(articles.value, route.value.param)
+-  : articles.value)
+-const selectedArticle = computed(() => findArticleBySlug(articles.value, route.value.param))
+-
+-function updateRoute() {
+-  route.value = parseHash(window.location.hash)
+-}
+-
+-function openArticle(slug) {
+-  window.location.hash = `/articles/${encodeURIComponent(slug)}`
+-}
+-
+-function filterTag(tag) {
+-  window.location.hash = `/tags/${encodeURIComponent(tag)}`
+-}
+-
+-async function refresh() {
+-  status.value = 'loading'
+-  errorMessage.value = ''
+-  const params = new URLSearchParams(window.location.search)
+-  if (params.has('fail')) {
+-    const result = await loadArticles(async () => ({ ok: false, status: 503 }))
+-    status.value = result.status
+-    errorMessage.value = result.message
+-    return
+-  }
+-  if (params.has('empty')) {
+-    articles.value = []
+-    status.value = 'empty'
+-    return
+-  }
+-  const result = await loadArticles(fetch, `${import.meta.env.BASE_URL}articles.json`)
+-  articles.value = result.articles
+-  status.value = result.status
+-  errorMessage.value = result.message
+-}
+-
+-onMounted(() => {
+-  window.addEventListener('hashchange', updateRoute)
+-  refresh()
+-})
+-onBeforeUnmount(() => window.removeEventListener('hashchange', updateRoute))
+ </script>
+ 
+ <template>
+   <a class="skip-link" href="#main-content">跳到主要内容</a>
+   <AppShell>
+     <template #navigation>
+-      <a href="#/">文章</a>
+-      <a href="#/about">关于</a>
++      <RouterLink to="/">文章</RouterLink>
++      <RouterLink to="/about">关于</RouterLink>
++      <RouterLink to="/admin/articles">管理</RouterLink>
+     </template>
+-
+-    <ArticleList
+-      v-if="route.name === 'home' || route.name === 'tag'"
+-      :articles="visibleArticles"
+-      :status="status"
+-      :error-message="errorMessage"
+-      @open="openArticle"
+-      @filter-tag="filterTag"
+-      @retry="refresh"
+-    />
+-    <ArticleDetail v-else-if="route.name === 'article'" :article="selectedArticle" />
+-    <section v-else-if="route.name === 'about'" class="prose-card">
+-      <p class="eyebrow">关于</p>
+-      <h1>为什么写“长风成卷”</h1>
+-      <p>这里保存前端学习中的真实问题、代码选择和发布证据。</p>
+-    </section>
+-    <section v-else class="state-card">
+-      <h1>页面不存在</h1>
+-      <a href="#/">返回文章列表</a>
+-    </section>
++    <RouterView />
+   </AppShell>
+ </template>
+diff --git a/src/components/AppShell.vue b/src/components/AppShell.vue
+index 4644b1d..5299235 100644
+--- a/src/components/AppShell.vue
++++ b/src/components/AppShell.vue
+@@ -1,10 +1,10 @@
+ <template>
+   <div class="site-shell">
+     <header class="site-header">
+-      <a class="brand" href="#/">长风成卷</a>
++      <RouterLink class="brand" to="/">长风成卷</RouterLink>
+       <nav aria-label="主导航"><slot name="navigation" /></nav>
+     </header>
+     <main id="main-content" class="main-content"><slot /></main>
+-    <footer class="site-footer">P2 v1.0 · 用作品记录学习</footer>
++    <footer class="site-footer">P2 v1.1 · 用作品记录学习</footer>
+   </div>
+ </template>
+diff --git a/src/components/ArticleComponents.test.js b/src/components/ArticleComponents.test.js
+index 0966e67..e98ed86 100644
+--- a/src/components/ArticleComponents.test.js
++++ b/src/components/ArticleComponents.test.js
+@@ -6,22 +6,29 @@ import ArticleDetail from './ArticleDetail.vue'
+ import ArticleList from './ArticleList.vue'
+ 
+ const article = { id: 1, slug: 'hello', title: '第一篇', summary: '摘要', tags: ['Vue'], author: '林晓', publishedAt: '2026-08-20', content: ['正文'] }
++const RouterLinkStub = (_, { slots }) => h('a', slots.default?.())
++
++async function render(component, props) {
++  const app = createSSRApp({ render: () => h(component, props) })
++  app.component('RouterLink', RouterLinkStub)
++  return renderToString(app)
++}
+ 
+ describe('阅读端组件', () => {
+   it('ArticleCard 输出标题、标签和可辨识按钮', async () => {
+-    const html = await renderToString(createSSRApp({ render: () => h(ArticleCard, { article }) }))
++    const html = await render(ArticleCard, { article })
+     expect(html).toContain('第一篇')
+     expect(html).toContain('Vue')
+     expect(html).toContain('阅读全文')
+   })
+ 
+   it('ArticleList 空数组输出明确空态', async () => {
+-    const html = await renderToString(createSSRApp({ render: () => h(ArticleList, { articles: [], status: 'empty' }) }))
++    const html = await render(ArticleList, { articles: [], status: 'empty' })
+     expect(html).toContain('还没有文章')
+   })
+ 
+   it('ArticleDetail 缺少文章时给出恢复入口', async () => {
+-    const html = await renderToString(createSSRApp({ render: () => h(ArticleDetail, { article: null }) }))
++    const html = await render(ArticleDetail, { article: null })
+     expect(html).toContain('没有找到')
+     expect(html).toContain('返回文章列表')
+   })
+diff --git a/src/components/ArticleDetail.vue b/src/components/ArticleDetail.vue
+index 1134a20..7a2fd03 100644
+--- a/src/components/ArticleDetail.vue
++++ b/src/components/ArticleDetail.vue
+@@ -4,7 +4,7 @@ defineProps({ article: { type: Object, default: null } })
+ 
+ <template>
+   <article v-if="article" class="article-detail">
+-    <a href="#/">← 返回文章列表</a>
++    <RouterLink to="/">← 返回文章列表</RouterLink>
+     <p class="eyebrow">{{ article.publishedAt }} · {{ article.author }}</p>
+     <h1>{{ article.title }}</h1>
+     <p v-for="paragraph in article.content" :key="paragraph">{{ paragraph }}</p>
+@@ -12,6 +12,6 @@ defineProps({ article: { type: Object, default: null } })
+   <section v-else class="state-card">
+     <h1>没有找到这篇文章</h1>
+     <p>文章可能已移动，或者链接输入有误。</p>
+-    <a href="#/">返回文章列表</a>
++    <RouterLink to="/">返回文章列表</RouterLink>
+   </section>
+ </template>
+diff --git a/src/composables/useArticles.js b/src/composables/useArticles.js
+new file mode 100644
+index 0000000..70fa68c
+--- /dev/null
++++ b/src/composables/useArticles.js
+@@ -0,0 +1,31 @@
++import { onMounted, ref } from 'vue'
++import { useArticleStore } from '../stores/articles.js'
++import { loadArticles } from '../services/articleLoader.js'
++
++export function useArticles() {
++  const store = useArticleStore()
++  const status = ref(store.ready ? 'success' : 'loading')
++  const errorMessage = ref('')
++
++  async function refresh() {
++    status.value = 'loading'
++    const params = new URLSearchParams(window.location.search)
++    if (params.has('fail')) {
++      const result = await loadArticles(async () => ({ ok: false, status: 503 }))
++      status.value = result.status
++      errorMessage.value = result.message
++      return
++    }
++    if (params.has('empty')) {
++      status.value = 'empty'
++      return
++    }
++    const result = await loadArticles(fetch, `${import.meta.env.BASE_URL}articles.json`)
++    if (result.status === 'success') store.hydrate(result.articles)
++    status.value = store.published.length ? 'success' : result.status
++    errorMessage.value = result.message
++  }
++
++  onMounted(refresh)
++  return { store, status, errorMessage, refresh }
++}
+diff --git a/src/main.js b/src/main.js
+index 97128ba..e446df3 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -1,5 +1,7 @@
+ import { createApp } from 'vue'
++import { createPinia } from 'pinia'
+ import App from './App.vue'
++import router from './router.js'
+ import './styles/main.css'
+ 
+-createApp(App).mount('#app')
++createApp(App).use(createPinia()).use(router).mount('#app')
+diff --git a/src/router.js b/src/router.js
+new file mode 100644
+index 0000000..4db8a3e
+--- /dev/null
++++ b/src/router.js
+@@ -0,0 +1,23 @@
++import { createRouter, createWebHistory } from 'vue-router'
++import AboutView from './views/AboutView.vue'
++import AdminArticlesView from './views/AdminArticlesView.vue'
++import ArticleFormView from './views/ArticleFormView.vue'
++import ArticleView from './views/ArticleView.vue'
++import HomeView from './views/HomeView.vue'
++import NotFoundView from './views/NotFoundView.vue'
++import PreviewView from './views/PreviewView.vue'
++
++export default createRouter({
++  history: createWebHistory(import.meta.env.BASE_URL),
++  routes: [
++    { path: '/', name: 'home', component: HomeView },
++    { path: '/tags/:tag', name: 'tag', component: HomeView, props: true },
++    { path: '/articles/:slug', name: 'article', component: ArticleView, props: true },
++    { path: '/about', name: 'about', component: AboutView },
++    { path: '/admin/articles', name: 'admin-articles', component: AdminArticlesView },
++    { path: '/admin/articles/new', name: 'article-new', component: ArticleFormView },
++    { path: '/admin/articles/:id/edit', name: 'article-edit', component: ArticleFormView, props: true },
++    { path: '/admin/articles/:id/preview', name: 'article-preview', component: PreviewView, props: true },
++    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
++  ],
++})
+diff --git a/src/services/articleEditorService.js b/src/services/articleEditorService.js
+new file mode 100644
+index 0000000..573ea9f
+--- /dev/null
++++ b/src/services/articleEditorService.js
+@@ -0,0 +1,68 @@
++import { normalizeArticles } from './articleService.js'
++
++export function validateArticle(input) {
++  const errors = {}
++  const title = typeof input.title === 'string' ? input.title.trim() : ''
++  const summary = typeof input.summary === 'string' ? input.summary.trim() : ''
++  // TODO-A：恢复空标题校验
++  if (false) errors.title = '标题不能为空'
++  else if (title.length > 60) errors.title = '标题不能超过 60 个字符'
++  if (!summary) errors.summary = '摘要不能为空'
++  else if (summary.length > 160) errors.summary = '摘要不能超过 160 个字符'
++  if (!['draft', 'published'].includes(input.status)) errors.status = '文章状态无效'
++  return errors
++}
++
++export function saveArticle(items, input, now = Date.now()) {
++  const errors = validateArticle(input)
++  if (Object.keys(errors).length) return { ok: false, errors, items }
++  const id = Number(input.id) || now
++  const article = {
++    id,
++    slug: input.slug?.trim() || `article-${id}`,
++    title: input.title.trim(),
++    summary: input.summary.trim(),
++    content: Array.isArray(input.content)
++      ? input.content
++      : String(input.content || '').split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean),
++    tags: Array.isArray(input.tags) ? input.tags : String(input.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean),
++    status: input.status,
++    author: input.author?.trim() || '林晓',
++    publishedAt: input.publishedAt || new Date(now).toISOString().slice(0, 10),
++  }
++  const index = items.findIndex((item) => item.id === id)
++  const next = [...items]
++  if (index >= 0) next.splice(index, 1, article)
++  else next.push(article)
++  return { ok: true, errors: {}, article, items: next }
++}
++
++export function removeArticle(items, id) {
++  return items.filter((article) => article.id !== Number(id))
++}
++
++export function searchArticles(items, query) {
++  const keyword = query.trim().toLocaleLowerCase('zh-CN')
++  if (!keyword) return [...items]
++  return items.filter((article) => `${article.title} ${article.summary} ${article.tags.join(' ')}`.toLocaleLowerCase('zh-CN').includes(keyword))
++}
++
++export function loadStoredArticles(storage, fallback = []) {
++  try {
++    const value = storage.getItem('p2-articles')
++    if (!value) return normalizeArticles(fallback)
++    return normalizeArticles(JSON.parse(value))
++  } catch {
++    return normalizeArticles(fallback)
++  }
++}
++
++export function persistArticles(storage, articles) {
++  try {
++    // TODO-B：恢复文章持久化
++  storage.setItem('p2-articles', '[]')
++    return true
++  } catch {
++    return false
++  }
++}
+diff --git a/src/stores/articles.js b/src/stores/articles.js
+new file mode 100644
+index 0000000..2e3a65e
+--- /dev/null
++++ b/src/stores/articles.js
+@@ -0,0 +1,28 @@
++import { defineStore } from 'pinia'
++import { loadStoredArticles, persistArticles, removeArticle, saveArticle } from '../services/articleEditorService.js'
++
++export const useArticleStore = defineStore('articles', {
++  state: () => ({ items: [], ready: false }),
++  getters: {
++    published: (state) => state.items.filter((article) => article.status !== 'draft'),
++    byId: (state) => (id) => state.items.find((article) => article.id === Number(id)) ?? null,
++  },
++  actions: {
++    hydrate(seed, storage = window.localStorage) {
++      if (!this.ready) this.items = loadStoredArticles(storage, seed)
++      this.ready = true
++    },
++    save(input, storage = window.localStorage) {
++      const result = saveArticle(this.items, input)
++      if (result.ok) {
++        this.items = result.items
++        persistArticles(storage, this.items)
++      }
++      return result
++    },
++    remove(id, storage = window.localStorage) {
++      this.items = removeArticle(this.items, id)
++      persistArticles(storage, this.items)
++    },
++  },
++})
+diff --git a/src/styles/main.css b/src/styles/main.css
+index 981ca33..38406de 100644
+--- a/src/styles/main.css
++++ b/src/styles/main.css
+@@ -18,6 +18,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid #d58b36; outline-offs
+ .site-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.4rem 0; border-bottom: 1px solid #cbc4b5; }
+ .brand { color: #20231f; font-family: Georgia, "Songti SC", serif; font-size: 1.45rem; font-weight: 700; text-decoration: none; }
+ nav { display: flex; gap: 1rem; }
++nav a.router-link-active { font-weight: 700; }
+ .main-content { min-height: 75vh; padding: 4rem 0; }
+ .section-heading { margin-bottom: 2rem; }
+ .eyebrow, .article-meta { color: #6e6254; font-size: 0.88rem; letter-spacing: 0.06em; text-transform: uppercase; }
+@@ -35,9 +36,20 @@ h1 { margin: 0.3rem 0; font-size: clamp(2rem, 5vw, 4rem); }
+ .article-detail, .prose-card { max-width: 48rem; margin: 0 auto; }
+ .article-detail p { font-size: 1.08rem; }
+ .site-footer { padding: 1.5rem 0 2.5rem; border-top: 1px solid #cbc4b5; color: #6e6254; }
++.filter-note, .preview-banner { padding: 0.7rem 1rem; border-radius: 0.6rem; background: #fff4cf; }
++.admin-heading, .admin-row, .row-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
++.admin-list { display: grid; gap: 0.8rem; margin-top: 1.5rem; }
++.admin-row, .form-card { padding: 1rem 1.25rem; border: 1px solid #d3ccbd; border-radius: 0.8rem; background: #fff; }
++.status-badge { margin-left: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 999px; background: #e6e0d4; font-size: 0.8rem; }
++.button-link, form button, .admin-row button { display: inline-block; border: 0; border-radius: 0.5rem; padding: 0.55rem 0.9rem; color: #fff; background: #315f53; cursor: pointer; text-decoration: none; }
++.form-card { max-width: 50rem; margin: 0 auto; }
++.field { display: grid; gap: 0.35rem; margin: 1rem 0; font-weight: 700; }
++.field input, .field textarea, .field select { width: 100%; border: 1px solid #9b9283; border-radius: 0.4rem; padding: 0.65rem; background: #fff; }
++.field-error { color: #a12e22; font-size: 0.9rem; }
+ .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+ 
+ @media (max-width: 36rem) {
+   .site-header { align-items: flex-start; flex-direction: column; }
++  .admin-heading, .admin-row { align-items: flex-start; flex-direction: column; }
+   .main-content { padding: 2rem 0; }
+ }
+diff --git a/src/views/AboutView.vue b/src/views/AboutView.vue
+new file mode 100644
+index 0000000..14110a8
+--- /dev/null
++++ b/src/views/AboutView.vue
+@@ -0,0 +1,7 @@
++<template>
++  <section class="prose-card">
++    <p class="eyebrow">关于</p>
++    <h1>为什么写“长风成卷”</h1>
++    <p>这里保存前端学习中的真实问题、代码选择和发布证据。</p>
++  </section>
++</template>
+diff --git a/src/views/AdminArticlesView.vue b/src/views/AdminArticlesView.vue
+new file mode 100644
+index 0000000..e2e17e0
+--- /dev/null
++++ b/src/views/AdminArticlesView.vue
+@@ -0,0 +1,34 @@
++<script setup>
++import { computed, ref } from 'vue'
++import { useArticles } from '../composables/useArticles.js'
++import { searchArticles } from '../services/articleEditorService.js'
++
++const query = ref('')
++const { store } = useArticles()
++const results = computed(() => searchArticles(store.items, query.value))
++
++function confirmRemove(article) {
++  if (window.confirm(`确认删除《${article.title}》？此操作无法撤销。`)) store.remove(article.id)
++}
++</script>
++
++<template>
++  <section>
++    <div class="admin-heading">
++      <div><p class="eyebrow">管理端</p><h1>文章管理</h1></div>
++      <RouterLink class="button-link" to="/admin/articles/new">新建文章</RouterLink>
++    </div>
++    <label class="field">搜索文章<input v-model.trim="query" type="search" placeholder="标题、摘要或标签" /></label>
++    <p v-if="results.length === 0" class="state-card">没有匹配的文章。</p>
++    <div v-else class="admin-list">
++      <article v-for="article in results" :key="article.id" class="admin-row">
++        <div><strong>{{ article.title }}</strong><span class="status-badge">{{ article.status === 'draft' ? '草稿' : '已发布' }}</span></div>
++        <div class="row-actions">
++          <RouterLink :to="`/admin/articles/${article.id}/preview`">预览</RouterLink>
++          <RouterLink :to="`/admin/articles/${article.id}/edit`">编辑</RouterLink>
++          <button type="button" @click="confirmRemove(article)">删除</button>
++        </div>
++      </article>
++    </div>
++  </section>
++</template>
+diff --git a/src/views/ArticleFormView.vue b/src/views/ArticleFormView.vue
+new file mode 100644
+index 0000000..d6440f1
+--- /dev/null
++++ b/src/views/ArticleFormView.vue
+@@ -0,0 +1,43 @@
++<script setup>
++import { computed, reactive, ref, watch } from 'vue'
++import { useRouter } from 'vue-router'
++import { useArticles } from '../composables/useArticles.js'
++
++const props = defineProps({ id: { type: String, default: '' } })
++const router = useRouter()
++const { store } = useArticles()
++const saved = ref(false)
++const errors = ref({})
++const existing = computed(() => store.byId(props.id))
++const form = reactive({ id: '', title: '', slug: '', summary: '', content: '', tags: '', status: 'draft', author: '林晓', publishedAt: '' })
++
++watch(existing, (article) => {
++  if (!article) return
++  Object.assign(form, article, { content: article.content.join('\n\n'), tags: article.tags.join(', ') })
++}, { immediate: true })
++
++function submit() {
++  const result = store.save(form)
++  errors.value = result.errors
++  if (!result.ok) return
++  saved.value = true
++  router.push('/admin/articles')
++}
++</script>
++
++<template>
++  <section class="form-card">
++    <p class="eyebrow">{{ id ? '编辑' : '新建' }}</p>
++    <h1>文章表单</h1>
++    <form novalidate @submit.prevent="submit">
++      <label class="field">标题<input v-model.trim="form.title" maxlength="60" /><span v-if="errors.title" class="field-error">{{ errors.title }}</span></label>
++      <label class="field">摘要<textarea v-model.trim="form.summary" maxlength="160" rows="3" /><span v-if="errors.summary" class="field-error">{{ errors.summary }}</span></label>
++      <label class="field">正文<textarea v-model="form.content" rows="8" /></label>
++      <label class="field">标签（逗号分隔）<input v-model="form.tags" /></label>
++      <label class="field">状态<select v-model="form.status"><option value="draft">草稿</option><option value="published">发布</option></select></label>
++      <span v-if="errors.status" class="field-error">{{ errors.status }}</span>
++      <div class="row-actions"><button type="submit">保存文章</button><RouterLink to="/admin/articles">取消</RouterLink></div>
++    </form>
++    <p v-if="saved">保存成功。</p>
++  </section>
++</template>
+diff --git a/src/views/ArticleView.vue b/src/views/ArticleView.vue
+new file mode 100644
+index 0000000..dabfa53
+--- /dev/null
++++ b/src/views/ArticleView.vue
+@@ -0,0 +1,15 @@
++<script setup>
++import { computed } from 'vue'
++import ArticleDetail from '../components/ArticleDetail.vue'
++import { useArticles } from '../composables/useArticles.js'
++import { findArticleBySlug } from '../services/articleService.js'
++
++const props = defineProps({ slug: { type: String, required: true } })
++const { store, status } = useArticles()
++const article = computed(() => findArticleBySlug(store.published, props.slug))
++</script>
++
++<template>
++  <p v-if="status === 'loading'" class="state-card">正在装订文章……</p>
++  <ArticleDetail v-else :article="article" />
++</template>
+diff --git a/src/views/HomeView.vue b/src/views/HomeView.vue
+new file mode 100644
+index 0000000..cdf8735
+--- /dev/null
++++ b/src/views/HomeView.vue
+@@ -0,0 +1,24 @@
++<script setup>
++import { computed } from 'vue'
++import { useRouter } from 'vue-router'
++import ArticleList from '../components/ArticleList.vue'
++import { useArticles } from '../composables/useArticles.js'
++import { filterArticlesByTag } from '../services/articleService.js'
++
++const props = defineProps({ tag: { type: String, default: '' } })
++const router = useRouter()
++const { store, status, errorMessage, refresh } = useArticles()
++const visibleArticles = computed(() => filterArticlesByTag(store.published, props.tag))
++</script>
++
++<template>
++  <p v-if="tag" class="filter-note">当前标签：{{ tag }} · <RouterLink to="/">清除筛选</RouterLink></p>
++  <ArticleList
++    :articles="visibleArticles"
++    :status="status"
++    :error-message="errorMessage"
++    @open="router.push({ name: 'article', params: { slug: $event } })"
++    @filter-tag="router.push({ name: 'tag', params: { tag: $event } })"
++    @retry="refresh"
++  />
++</template>
+diff --git a/src/views/NotFoundView.vue b/src/views/NotFoundView.vue
+new file mode 100644
+index 0000000..a85846c
+--- /dev/null
++++ b/src/views/NotFoundView.vue
+@@ -0,0 +1,3 @@
++<template>
++  <section class="state-card"><h1>页面不存在</h1><RouterLink to="/">返回文章列表</RouterLink></section>
++</template>
+diff --git a/src/views/PreviewView.vue b/src/views/PreviewView.vue
+new file mode 100644
+index 0000000..feea0b8
+--- /dev/null
++++ b/src/views/PreviewView.vue
+@@ -0,0 +1,14 @@
++<script setup>
++import { computed } from 'vue'
++import ArticleDetail from '../components/ArticleDetail.vue'
++import { useArticles } from '../composables/useArticles.js'
++
++const props = defineProps({ id: { type: String, required: true } })
++const { store } = useArticles()
++const article = computed(() => store.byId(props.id))
++</script>
++
++<template>
++  <p class="preview-banner">管理预览：草稿也会显示，但不会出现在公开阅读端。</p>
++  <ArticleDetail :article="article" />
++</template>
+diff --git a/tests/article-editor.test.mjs b/tests/article-editor.test.mjs
+new file mode 100644
+index 0000000..8031a7e
+--- /dev/null
++++ b/tests/article-editor.test.mjs
+@@ -0,0 +1,51 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import { loadStoredArticles, persistArticles, removeArticle, saveArticle, searchArticles, validateArticle } from '../src/services/articleEditorService.js'
++
++const input = { title: '新文章', summary: '摘要', content: '正文', tags: 'Vue, 测试', status: 'draft' }
++
++test('正常：新建文章并保留源数组', () => {
++  const source = []
++  const result = saveArticle(source, input, 101)
++  assert.equal(result.ok, true)
++  assert.equal(result.article.id, 101)
++  assert.deepEqual(result.article.tags, ['Vue', '测试'])
++  assert.equal(source.length, 0)
++})
++
++test('正常：按 id 更新文章而不增加数量', () => {
++  const source = [{ ...input, id: 1, slug: 'old', tags: [], content: [] }]
++  const result = saveArticle(source, { ...input, id: 1, title: '已更新' })
++  assert.equal(result.items.length, 1)
++  assert.equal(result.items[0].title, '已更新')
++})
++
++test('边界：标题和摘要校验给出字段错误', () => {
++  const errors = validateArticle({ title: '', summary: 'x'.repeat(161), status: 'unknown' })
++  assert.equal(errors.title, '标题不能为空')
++  assert.match(errors.summary, /160/)
++  assert.equal(errors.status, '文章状态无效')
++})
++
++test('搜索：空查询复制列表，关键词匹配标签', () => {
++  const items = [{ title: '文章', summary: '摘要', tags: ['Vue'] }]
++  assert.notEqual(searchArticles(items, ''), items)
++  assert.equal(searchArticles(items, 'vue').length, 1)
++  assert.equal(searchArticles(items, 'CSS').length, 0)
++})
++
++test('删除：只删除指定 id', () => {
++  assert.deepEqual(removeArticle([{ id: 1 }, { id: 2 }], 1), [{ id: 2 }])
++})
++
++test('刷新恢复：可读存储；损坏存储回退 seed', () => {
++  const valid = { getItem: () => JSON.stringify([{ id: 1, slug: 'one', title: '文章' }]) }
++  assert.equal(loadStoredArticles(valid).length, 1)
++  const broken = { getItem: () => '{bad json' }
++  assert.equal(loadStoredArticles(broken, [{ id: 2, slug: 'seed', title: '种子' }])[0].id, 2)
++})
++
++test('失败：存储不可用时返回 false', () => {
++  const storage = { setItem: () => { throw new Error('quota') } }
++  assert.equal(persistArticles(storage, []), false)
++})

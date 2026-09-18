@@ -1,0 +1,2 @@
+import { openMysqlPool } from '../../server/mysqlDatabase.js'
+const pool=openMysqlPool();try{const[[tables]]=await pool.query("SELECT COUNT(*) count FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('users','members','schema_migrations')");const[[members]]=await pool.query('SELECT COUNT(*) count FROM members');if(Number(tables.count)!==3)throw new Error(`expected 3 tables, found ${tables.count}`);console.log(`MySQL 验证通过：3 张表，${members.count} 条成员记录。`)}finally{await pool.end()}

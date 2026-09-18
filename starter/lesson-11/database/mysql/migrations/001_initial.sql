@@ -1,0 +1,35 @@
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(80) NOT NULL UNIQUE,
+  display_name VARCHAR(120) NOT NULL,
+  role ENUM('author', 'admin') NOT NULL DEFAULT 'author',
+  password_salt CHAR(32) NULL,
+  password_hash CHAR(128) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS articles (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(160) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  summary VARCHAR(500) NOT NULL,
+  content_json JSON NOT NULL,
+  tags_json JSON NOT NULL,
+  status ENUM('draft', 'published') NOT NULL,
+  author VARCHAR(120) NOT NULL,
+  published_at DATE NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_articles_status_published (status, published_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS comments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  article_id BIGINT UNSIGNED NOT NULL,
+  author_name VARCHAR(120) NOT NULL,
+  body TEXT NOT NULL,
+  status ENUM('visible', 'hidden') NOT NULL DEFAULT 'visible',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_comments_article (article_id, created_at DESC),
+  CONSTRAINT fk_comments_article FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

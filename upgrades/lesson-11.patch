@@ -1,0 +1,1236 @@
+diff --git a/.env.example b/.env.example
+index cf56d29..0fd2ed7 100644
+--- a/.env.example
++++ b/.env.example
+@@ -2,3 +2,12 @@ PORT=3000
+ ALLOWED_ORIGIN=http://127.0.0.1:5173
+ VITE_API_BASE_URL=
+ DATABASE_PATH=./var/p2-blog.sqlite
++DB_DRIVER=sqlite
++MYSQL_HOST=127.0.0.1
++MYSQL_PORT=3306
++MYSQL_DATABASE=ffd_p2
++MYSQL_USER=ffd_p2_app
++MYSQL_PASSWORD=change-me
++SESSION_SECRET=change-me-at-least-32-characters
++ADMIN_USERNAME=teacher
++ADMIN_PASSWORD=change-me-at-least-12-characters
+diff --git a/README.md b/README.md
+index 0899a79..0628f4c 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,5 @@
+-# 第10课 教师参考答案
++# 第11课 学生起点
+ 
+-完整项目：长风成卷 v2.1。主修改文件：`database/classroom-query.mjs`。
++本课任务：恢复有效令牌判断；提取 Bearer 令牌。主文件：`server/services/auth.js`。页面能启动，待完成规则的对应测试可能失败，先读失败说明再补任务。其余功能是老师提供的工程基础，不要求全部手写。
+ 
+-安装运行见项目统一实操手册；先启动本地，自动测试、构建通过后发布。老师与学生均不要直接使用教师生产API。
++完整步骤见领取资料 `docs/lesson-11.md`。
+diff --git a/database/migrations/002_user_auth.sql b/database/migrations/002_user_auth.sql
+new file mode 100644
+index 0000000..5c0ce96
+--- /dev/null
++++ b/database/migrations/002_user_auth.sql
+@@ -0,0 +1,4 @@
++ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'author'
++  CHECK (role IN ('author', 'admin'));
++ALTER TABLE users ADD COLUMN password_salt TEXT;
++ALTER TABLE users ADD COLUMN password_hash TEXT;
+diff --git a/database/mysql/backup.mjs b/database/mysql/backup.mjs
+new file mode 100644
+index 0000000..fed0e33
+--- /dev/null
++++ b/database/mysql/backup.mjs
+@@ -0,0 +1,14 @@
++import { execFile } from 'node:child_process'
++import { mkdir, writeFile } from 'node:fs/promises'
++import { dirname, resolve } from 'node:path'
++import { promisify } from 'node:util'
++import { mysqlConfig } from '../../server/mysqlDatabase.js'
++
++const execute = promisify(execFile)
++const config = mysqlConfig()
++const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
++const destination = resolve(process.argv[2] || `./var/backups/mysql-p2-${timestamp}.sql`)
++await mkdir(dirname(destination), { recursive: true })
++const { stdout } = await execute('mysqldump', ['--single-transaction', '--skip-lock-tables', '--no-tablespaces', '--set-gtid-purged=OFF', '-h', config.host, '-P', String(config.port), '-u', config.user, config.database], { env: { ...process.env, MYSQL_PWD: config.password }, encoding: 'buffer', maxBuffer: 50 * 1024 * 1024 })
++await writeFile(destination, stdout, { mode: 0o600 })
++console.log(`MySQL 备份完成：${destination}`)
+diff --git a/database/mysql/migrate.mjs b/database/mysql/migrate.mjs
+new file mode 100644
+index 0000000..656dc8e
+--- /dev/null
++++ b/database/mysql/migrate.mjs
+@@ -0,0 +1,7 @@
++import { migrateMysql, openMysqlPool } from '../../server/mysqlDatabase.js'
++
++const pool = openMysqlPool()
++try {
++  const applied = await migrateMysql(pool)
++  console.log(applied.length ? `已应用 MySQL 迁移：${applied.join(', ')}` : 'MySQL 已是最新版本。')
++} finally { await pool.end() }
+diff --git a/database/mysql/migrations/001_initial.sql b/database/mysql/migrations/001_initial.sql
+new file mode 100644
+index 0000000..c95fcb8
+--- /dev/null
++++ b/database/mysql/migrations/001_initial.sql
+@@ -0,0 +1,35 @@
++CREATE TABLE IF NOT EXISTS users (
++  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
++  username VARCHAR(80) NOT NULL UNIQUE,
++  display_name VARCHAR(120) NOT NULL,
++  role ENUM('author', 'admin') NOT NULL DEFAULT 'author',
++  password_salt CHAR(32) NULL,
++  password_hash CHAR(128) NULL,
++  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
++
++CREATE TABLE IF NOT EXISTS articles (
++  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
++  slug VARCHAR(160) NOT NULL UNIQUE,
++  title VARCHAR(255) NOT NULL,
++  summary VARCHAR(500) NOT NULL,
++  content_json JSON NOT NULL,
++  tags_json JSON NOT NULL,
++  status ENUM('draft', 'published') NOT NULL,
++  author VARCHAR(120) NOT NULL,
++  published_at DATE NOT NULL,
++  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
++  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
++  INDEX idx_articles_status_published (status, published_at DESC)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
++
++CREATE TABLE IF NOT EXISTS comments (
++  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
++  article_id BIGINT UNSIGNED NOT NULL,
++  author_name VARCHAR(120) NOT NULL,
++  body TEXT NOT NULL,
++  status ENUM('visible', 'hidden') NOT NULL DEFAULT 'visible',
++  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
++  INDEX idx_comments_article (article_id, created_at DESC),
++  CONSTRAINT fk_comments_article FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+diff --git a/database/mysql/restore.mjs b/database/mysql/restore.mjs
+new file mode 100644
+index 0000000..7cb43a5
+--- /dev/null
++++ b/database/mysql/restore.mjs
+@@ -0,0 +1,17 @@
++import { createReadStream } from 'node:fs'
++import { access } from 'node:fs/promises'
++import { spawn } from 'node:child_process'
++import { mysqlConfig } from '../../server/mysqlDatabase.js'
++
++const source = process.argv[2]
++if (!source) {
++  console.error('用法：npm run db:mysql:restore -- <备份 SQL 路径>')
++  process.exit(1)
++}
++await access(source)
++const config = mysqlConfig()
++const child = spawn('mysql', ['-h', config.host, '-P', String(config.port), '-u', config.user, config.database], { env: { ...process.env, MYSQL_PWD: config.password }, stdio: ['pipe', 'inherit', 'inherit'] })
++createReadStream(source).pipe(child.stdin)
++const exitCode = await new Promise((resolve) => child.once('close', resolve))
++if (exitCode !== 0) process.exit(exitCode)
++console.log('MySQL 恢复完成，请继续运行 db:mysql:verify。')
+diff --git a/database/mysql/seed.mjs b/database/mysql/seed.mjs
+new file mode 100644
+index 0000000..a85e049
+--- /dev/null
++++ b/database/mysql/seed.mjs
+@@ -0,0 +1,8 @@
++import { openMysqlPool, seedMysql, seedMysqlAdmin } from '../../server/mysqlDatabase.js'
++import { createMysqlUserRepository } from '../../server/repositories/mysqlUserRepository.js'
++
++const pool = openMysqlPool()
++try {
++  console.log(`MySQL 种子数据就绪，文章总数：${await seedMysql(pool)}`)
++  await seedMysqlAdmin(createMysqlUserRepository(pool), { username: process.env.ADMIN_USERNAME, password: process.env.ADMIN_PASSWORD })
++} finally { await pool.end() }
+diff --git a/database/mysql/verify.mjs b/database/mysql/verify.mjs
+new file mode 100644
+index 0000000..a092d8b
+--- /dev/null
++++ b/database/mysql/verify.mjs
+@@ -0,0 +1,9 @@
++import { openMysqlPool } from '../../server/mysqlDatabase.js'
++
++const pool = openMysqlPool()
++try {
++  const [rows] = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('users','articles','comments') ORDER BY table_name")
++  const [[migration]] = await pool.query('SELECT COUNT(*) AS count FROM schema_migrations')
++  if (rows.length !== 3 || Number(migration.count) < 1) throw new Error('MySQL 数据库验证失败')
++  console.log(`MySQL 验证通过：业务表=${rows.map((row) => row.TABLE_NAME || row.table_name).join(',')}，迁移数=${migration.count}`)
++} finally { await pool.end() }
+diff --git a/docs/api-contract.md b/docs/api-contract.md
+index ac6225b..dfd41a0 100644
+--- a/docs/api-contract.md
++++ b/docs/api-contract.md
+@@ -1,15 +1,16 @@
+-# P2 v2.1 REST API 契约
++# P2 v2.2 REST API 契约
+ 
+ 基础路径由 `VITE_API_BASE_URL` 指定；本地开发为空，由 Vite 把 `/api` 代理到 `http://127.0.0.1:3000`。
+ 
+ | 方法 | 路径 | 成功 | 失败 |
+ | --- | --- | --- | --- |
+ | GET | `/health` | `200 { ok, service }` | 服务不可达 |
++| POST | `/api/auth/login` | `200 { data: { token, user } }` | `401 INVALID_CREDENTIALS` |
+ | GET | `/api/articles` | `200 { data, total }` | `500` |
+ | GET | `/api/articles/:id` | `200 { data }` | `404 ARTICLE_NOT_FOUND` |
+-| POST | `/api/articles` | `201 { data }` | `400 VALIDATION_ERROR` |
+-| PUT | `/api/articles/:id` | `200 { data }` | `400` / `404` |
+-| DELETE | `/api/articles/:id` | `204` | `404` |
++| POST | `/api/articles` | `201 { data }` | `400 VALIDATION_ERROR` / `401` |
++| PUT | `/api/articles/:id` | `200 { data }` | `400` / `401` / `404` |
++| DELETE | `/api/articles/:id` | `204` | `401` / `403` / `404` |
+ 
+ 列表支持 `status=published|draft`、`q=关键词`、`page` 和 `pageSize` 查询参数。`page` 默认 1；`pageSize` 默认 20、最大 50。响应同时返回 `total`、`page` 和 `pageSize`。
+ 
+@@ -26,3 +27,5 @@
+ ```
+ 
+ 所有响应携带 `x-request-id`；服务日志记录 requestId、方法、路径、状态码和耗时，不记录正文、Cookie 或环境变量。
++
++写操作通过 `Authorization: Bearer <token>` 认证。作者和管理员可以新建、修改；只有管理员可以删除。未登录返回 `401 AUTH_REQUIRED`，已登录但角色不足返回 `403 FORBIDDEN`。登录失败统一返回 `401 INVALID_CREDENTIALS`，不透露用户名是否存在。
+diff --git a/docs/lesson-11-teacher-guide.md b/docs/lesson-11-teacher-guide.md
+new file mode 100644
+index 0000000..3999e63
+--- /dev/null
++++ b/docs/lesson-11-teacher-guide.md
+@@ -0,0 +1 @@
++数据库与发布：db:migrate、db:seed、db:verify、db:backup、db:restore；权限区分401与403。MySQL扩展 db:mysql:backup。完整操作按本次统一手册与 Ubuntu Nginx 部署步骤，回滚使用Git标签和备份，不使用教师生产API。
+diff --git a/package-lock.json b/package-lock.json
+index 32f7429..c2888fa 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,14 +1,15 @@
+ {
+   "name": "ffd-p2-blog",
+-  "version": "2.1.1",
++  "version": "2.2.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "ffd-p2-blog",
+-      "version": "2.1.1",
++      "version": "2.2.0",
+       "dependencies": {
+         "express": "^5.1.0",
++        "mysql2": "^3.15.0",
+         "pinia": "^3.0.0",
+         "vue": "^3.5.0",
+         "vue-router": "^4.5.0"
+@@ -915,6 +916,16 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/@types/node": {
++      "version": "26.4.1",
++      "resolved": "https://registry.npmjs.org/@types/node/-/node-26.4.1.tgz",
++      "integrity": "sha512-k97ENvZWtvA6yqz5/FS6a7duDgOPEeOQOc2iKS/nY6mX6qJUKtLnWzQS+Xj6tXweyj6ZcTAK2Qecetnvi9nCLA==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "undici-types": "~8.3.0"
++      }
++    },
+     "node_modules/@vitejs/plugin-vue": {
+       "version": "6.0.8",
+       "resolved": "https://registry.npmjs.org/@vitejs/plugin-vue/-/plugin-vue-6.0.8.tgz",
+@@ -1213,6 +1224,15 @@
+         "node": ">=12"
+       }
+     },
++    "node_modules/aws-ssl-profiles": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/aws-ssl-profiles/-/aws-ssl-profiles-1.1.2.tgz",
++      "integrity": "sha512-NZKeq9AfyQvEeNlN0zSYAaWrmBffJh3IELMZfRpJVWgrpEbtEpnjvzqBPf+mxoI287JohRDoa+/nsfqqiZmF6g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 6.0.0"
++      }
++    },
+     "node_modules/birpc": {
+       "version": "2.9.0",
+       "resolved": "https://registry.npmjs.org/birpc/-/birpc-2.9.0.tgz",
+@@ -1707,6 +1727,15 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/generate-function": {
++      "version": "2.3.1",
++      "resolved": "https://registry.npmjs.org/generate-function/-/generate-function-2.3.1.tgz",
++      "integrity": "sha512-eeB5GfMNeevm/GRYq20ShmsaGcmI81kIX2K9XQx5miC8KdHaC6Jm0qQ8ZNeGOi7wYB8OsdxKs+Y2oVuTFuVwKQ==",
++      "license": "MIT",
++      "dependencies": {
++        "is-property": "^1.0.2"
++      }
++    },
+     "node_modules/get-intrinsic": {
+       "version": "1.3.0",
+       "resolved": "https://registry.npmjs.org/get-intrinsic/-/get-intrinsic-1.3.0.tgz",
+@@ -1843,6 +1872,12 @@
+       "integrity": "sha512-hvpoI6korhJMnej285dSg6nu1+e6uxs7zG3BYAm5byqDsgJNWwxzM6z6iZiAgQR4TJ30JmBTOwqZUw3WlyH3AQ==",
+       "license": "MIT"
+     },
++    "node_modules/is-property": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/is-property/-/is-property-1.0.2.tgz",
++      "integrity": "sha512-Ks/IoX00TtClbGQr4TWXemAnktAQvYB7HzcCxDGqEZU6oCmb2INHuOoKxbtR+HFkmYWBKv/dOZtGRiAjDhj92g==",
++      "license": "MIT"
++    },
+     "node_modules/js-tokens": {
+       "version": "9.0.1",
+       "resolved": "https://registry.npmjs.org/js-tokens/-/js-tokens-9.0.1.tgz",
+@@ -1850,6 +1885,12 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/long": {
++      "version": "5.3.2",
++      "resolved": "https://registry.npmjs.org/long/-/long-5.3.2.tgz",
++      "integrity": "sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==",
++      "license": "Apache-2.0"
++    },
+     "node_modules/loupe": {
+       "version": "3.2.1",
+       "resolved": "https://registry.npmjs.org/loupe/-/loupe-3.2.1.tgz",
+@@ -1857,6 +1898,21 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/lru.min": {
++      "version": "1.1.5",
++      "resolved": "https://registry.npmjs.org/lru.min/-/lru.min-1.1.5.tgz",
++      "integrity": "sha512-5J9ysMYUpYIg9RF2vJpy9SinEmSviFSe0GyPpCQ4L5QSkLAgeLXlTAOu2ZwWUU5m+0SBl6gUU1R1ZQB3aKypfA==",
++      "license": "MIT",
++      "engines": {
++        "bun": ">=1.0.0",
++        "deno": ">=1.30.0",
++        "node": ">=8.0.0"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/sponsors/wellwelwel"
++      }
++    },
+     "node_modules/magic-string": {
+       "version": "0.30.21",
+       "resolved": "https://registry.npmjs.org/magic-string/-/magic-string-0.30.21.tgz",
+@@ -1937,6 +1993,39 @@
+       "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==",
+       "license": "MIT"
+     },
++    "node_modules/mysql2": {
++      "version": "3.24.3",
++      "resolved": "https://registry.npmjs.org/mysql2/-/mysql2-3.24.3.tgz",
++      "integrity": "sha512-OKfWHkMAg9v06neq8FmSyhbxPQKABN9PAW5G9/bDTXzJBO5xXtkKL0V27vju7HQWk9UD4Od5BZsvCtBTB1CPEw==",
++      "license": "MIT",
++      "dependencies": {
++        "aws-ssl-profiles": "^1.1.2",
++        "generate-function": "^2.3.1",
++        "iconv-lite": "^0.7.3",
++        "long": "^5.3.2",
++        "lru.min": "^1.1.4",
++        "named-placeholders": "^1.1.6",
++        "sql-escaper": "^1.5.1"
++      },
++      "engines": {
++        "node": ">= 8.0"
++      },
++      "peerDependencies": {
++        "@types/node": ">= 8"
++      }
++    },
++    "node_modules/named-placeholders": {
++      "version": "1.1.6",
++      "resolved": "https://registry.npmjs.org/named-placeholders/-/named-placeholders-1.1.6.tgz",
++      "integrity": "sha512-Tz09sEL2EEuv5fFowm419c1+a/jSMiBjI9gHxVLrVdbUkkNUUfjsVYs9pVZu5oCon/kmRh9TfLEObFtkVxmY0w==",
++      "license": "MIT",
++      "dependencies": {
++        "lru.min": "^1.1.0"
++      },
++      "engines": {
++        "node": ">=8.0.0"
++      }
++    },
+     "node_modules/nanoid": {
+       "version": "3.3.18",
+       "resolved": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.18.tgz",
+@@ -2407,6 +2496,21 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/sql-escaper": {
++      "version": "1.5.1",
++      "resolved": "https://registry.npmjs.org/sql-escaper/-/sql-escaper-1.5.1.tgz",
++      "integrity": "sha512-4toX5E1fQbBrpfXidaHnF0669nkAdETeIPTs2SUjxxD7RRIs9ICG4gtpmfc68JCEKehsdwLFqBu9VlQqZ1P1gg==",
++      "license": "MIT",
++      "engines": {
++        "bun": ">=1.0.0",
++        "deno": ">=2.0.0",
++        "node": ">=12.0.0"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/mysqljs/sql-escaper?sponsor=1"
++      }
++    },
+     "node_modules/stackback": {
+       "version": "0.0.2",
+       "resolved": "https://registry.npmjs.org/stackback/-/stackback-0.0.2.tgz",
+@@ -2556,6 +2660,12 @@
+         "url": "https://opencollective.com/express"
+       }
+     },
++    "node_modules/undici-types": {
++      "version": "8.3.0",
++      "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-8.3.0.tgz",
++      "integrity": "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==",
++      "license": "MIT"
++    },
+     "node_modules/unpipe": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/unpipe/-/unpipe-1.0.0.tgz",
+diff --git a/package.json b/package.json
+index 40324c3..d374a4b 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "ffd-p2-blog",
+-  "version": "2.1.1",
++  "version": "2.2.0",
+   "private": true,
+   "type": "module",
+   "engines": {
+@@ -15,6 +15,11 @@
+     "db:verify": "node database/verify.mjs",
+     "db:backup": "node database/backup.mjs",
+     "db:restore": "node database/restore.mjs",
++    "db:mysql:migrate": "node database/mysql/migrate.mjs",
++    "db:mysql:seed": "node database/mysql/seed.mjs",
++    "db:mysql:verify": "node database/mysql/verify.mjs",
++    "db:mysql:backup": "node database/mysql/backup.mjs",
++    "db:mysql:restore": "node database/mysql/restore.mjs",
+     "check": "node scripts/check-project.mjs",
+     "test:unit": "node --test tests/*.test.mjs",
+     "test:component": "vitest run",
+@@ -23,6 +28,7 @@
+   },
+   "dependencies": {
+     "express": "^5.1.0",
++    "mysql2": "^3.15.0",
+     "pinia": "^3.0.0",
+     "vue": "^3.5.0",
+     "vue-router": "^4.5.0"
+diff --git a/scripts/check-project.mjs b/scripts/check-project.mjs
+index 5d80a60..0d567bd 100644
+--- a/scripts/check-project.mjs
++++ b/scripts/check-project.mjs
+@@ -17,6 +17,13 @@ const files = {
+   sqliteRepository: await readFile('server/repositories/sqliteArticleRepository.js', 'utf8'),
+   migration: await readFile('database/migrations/001_initial.sql', 'utf8'),
+   lesson10: await readFile('docs/lesson-10-teacher-guide.md', 'utf8'),
++  auth: await readFile('server/services/auth.js', 'utf8'),
++  login: await readFile('src/views/LoginView.vue', 'utf8'),
++  authStore: await readFile('src/stores/auth.js', 'utf8'),
++  mysqlDatabase: await readFile('server/mysqlDatabase.js', 'utf8'),
++  mysqlRepository: await readFile('server/repositories/mysqlArticleRepository.js', 'utf8'),
++  mysqlMigration: await readFile('database/mysql/migrations/001_initial.sql', 'utf8'),
++  lesson11: await readFile('docs/lesson-11-teacher-guide.md', 'utf8'),
+ }
+ 
+ const rules = [
+@@ -40,11 +47,18 @@ const rules = [
+   ['迁移包含 users、articles、comments 三张业务表', /CREATE TABLE IF NOT EXISTS users/.test(files.migration) && /CREATE TABLE IF NOT EXISTS articles/.test(files.migration) && /CREATE TABLE IF NOT EXISTS comments/.test(files.migration)],
+   ['SQLite 仓储实现分页与持久化 CRUD', /LIMIT \? OFFSET \?/.test(files.sqliteRepository) && /INSERT INTO articles/.test(files.sqliteRepository) && /DELETE FROM articles/.test(files.sqliteRepository)],
+   ['第 10 次课指南包含迁移、备份、恢复演示', /db:migrate/.test(files.lesson10) && /db:backup/.test(files.lesson10) && /db:restore/.test(files.lesson10)],
++  ['登录使用带 salt 的 scrypt 与签名过期令牌', /scryptSync/.test(files.auth) && /timingSafeEqual/.test(files.auth) && /createHmac/.test(files.auth) && /exp/.test(files.auth)],
++  ['API 在服务器端区分 401 与 403', /AUTH_REQUIRED/.test(files.server) && /FORBIDDEN/.test(files.server) && /requireRole/.test(files.server)],
++  ['前端包含登录表单、会话 store 与管理路由保护', /type="password"/.test(files.login) && /defineStore/.test(files.authStore) && /requiresAuth/.test(files.router)],
++  ['MySQL 配置必须由环境变量提供', /MYSQL_PASSWORD/.test(files.mysqlDatabase) && /Missing environment variable/.test(files.mysqlDatabase)],
++  ['MySQL 迁移包含三表、外键与 utf8mb4', /CREATE TABLE IF NOT EXISTS users/.test(files.mysqlMigration) && /FOREIGN KEY/.test(files.mysqlMigration) && /utf8mb4/.test(files.mysqlMigration)],
++  ['MySQL repository 使用参数化 CRUD 与分页', /pool\.execute/.test(files.mysqlRepository) && /LIMIT \? OFFSET \?/.test(files.mysqlRepository)],
++  ['第 11 次课指南包含权限、MySQL、Nginx 和回滚', /401/.test(files.lesson11) && /403/.test(files.lesson11) && /db:mysql:backup/.test(files.lesson11) && /Nginx/.test(files.lesson11) && /回滚/.test(files.lesson11)],
+ ]
+ 
+ const failures = rules.filter(([, passed]) => !passed).map(([name]) => name)
+ if (failures.length) {
+-  console.error(`P2 v2.1 结构检查失败：\n- ${failures.join('\n- ')}`)
++  console.error(`P2 v2.2 结构检查失败：\n- ${failures.join('\n- ')}`)
+   process.exit(1)
+ }
+-console.log(`P2 v2.1 结构检查通过：${rules.length} 项规则全部满足。`)
++console.log(`P2 v2.2 结构检查通过：${rules.length} 项规则全部满足。`)
+diff --git a/server/app.js b/server/app.js
+index 2f14ed7..c822e23 100644
+--- a/server/app.js
++++ b/server/app.js
+@@ -3,8 +3,9 @@ import express from 'express'
+ import { seedArticles } from './data/seedArticles.js'
+ import { createMemoryArticleRepository } from './repositories/memoryArticleRepository.js'
+ import { toArticleRecord, validateArticleInput } from './services/articleInput.js'
++import { createAccessToken, readBearerToken, verifyAccessToken, verifyPassword } from './services/auth.js'
+ 
+-export function createApp({ repository = createMemoryArticleRepository(seedArticles), allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://127.0.0.1:5173', logger = console } = {}) {
++export function createApp({ repository = createMemoryArticleRepository(seedArticles), userRepository = null, tokenSecret = process.env.SESSION_SECRET || '', allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://127.0.0.1:5173', logger = console } = {}) {
+   const app = express()
+   app.disable('x-powered-by')
+   app.use(express.json({ limit: '100kb' }))
+@@ -12,7 +13,7 @@ export function createApp({ repository = createMemoryArticleRepository(seedArtic
+     const requestId = req.get('x-request-id') || crypto.randomUUID()
+     res.set('x-request-id', requestId)
+     res.set('access-control-allow-origin', allowedOrigin)
+-    res.set('access-control-allow-headers', 'content-type,x-request-id')
++    res.set('access-control-allow-headers', 'content-type,x-request-id,authorization')
+     res.set('access-control-allow-methods', 'GET,POST,PUT,DELETE,OPTIONS')
+     if (req.method === 'OPTIONS') return res.sendStatus(204)
+     const startedAt = Date.now()
+@@ -22,37 +23,57 @@ export function createApp({ repository = createMemoryArticleRepository(seedArtic
+ 
+   app.get('/health', (req, res) => res.json({ ok: true, service: 'p2-blog-api' }))
+ 
+-  app.get('/api/articles', (req, res) => {
++  app.post('/api/auth/login', async (req, res) => {
++    const username = String(req.body?.username || '').trim()
++    const password = String(req.body?.password || '')
++    if (!username || username.length > 80 || !password || password.length > 200) return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: 'invalid username or password' } })
++    const user = userRepository ? await userRepository.findByUsername(username) : null
++    if (!user || !verifyPassword(password, user.passwordSalt, user.passwordHash)) return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: 'invalid username or password' } })
++    const token = createAccessToken(user, tokenSecret)
++    res.json({ data: { token, user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role } } })
++  })
++
++  function requireRole(...roles) {
++    return (req, res, next) => {
++      const claims = verifyAccessToken(readBearerToken(req.get('authorization')), tokenSecret)
++      if (!claims) return res.status(401).json({ error: { code: 'AUTH_REQUIRED', message: 'login required' } })
++      if (!roles.includes(claims.role)) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'forbidden' } })
++      req.user = claims
++      next()
++    }
++  }
++
++  app.get('/api/articles', async (req, res) => {
+     const status = req.query.status
+     const query = String(req.query.q || '').trim().toLocaleLowerCase('zh-CN')
+     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1)
+     const pageSize = Math.min(50, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 20))
+-    const { items, total } = repository.list({ status, query, page, pageSize })
++    const { items, total } = await repository.list({ status, query, page, pageSize })
+     res.json({ data: items, total, page, pageSize })
+   })
+ 
+-  app.get('/api/articles/:id', (req, res) => {
+-    const article = repository.find(req.params.id)
++  app.get('/api/articles/:id', async (req, res) => {
++    const article = await repository.find(req.params.id)
+     if (!article) return res.status(404).json({ error: { code: 'ARTICLE_NOT_FOUND', message: 'article not found' } })
+     res.json({ data: article })
+   })
+ 
+-  app.post('/api/articles', (req, res) => {
++  app.post('/api/articles', requireRole('author', 'admin'), async (req, res) => {
+     const errors = validateArticleInput(req.body)
+     if (Object.keys(errors).length) return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'invalid article', fields: errors } })
+-    res.status(201).json({ data: repository.create(toArticleRecord(req.body)) })
++    res.status(201).json({ data: await repository.create(toArticleRecord(req.body)) })
+   })
+ 
+-  app.put('/api/articles/:id', (req, res) => {
+-    const existing = repository.find(req.params.id)
++  app.put('/api/articles/:id', requireRole('author', 'admin'), async (req, res) => {
++    const existing = await repository.find(req.params.id)
+     if (!existing) return res.status(404).json({ error: { code: 'ARTICLE_NOT_FOUND', message: 'article not found' } })
+     const errors = validateArticleInput(req.body)
+     if (Object.keys(errors).length) return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'invalid article', fields: errors } })
+-    res.json({ data: repository.update(req.params.id, toArticleRecord(req.body, existing)) })
++    res.json({ data: await repository.update(req.params.id, toArticleRecord(req.body, existing)) })
+   })
+ 
+-  app.delete('/api/articles/:id', (req, res) => {
+-    if (!repository.remove(req.params.id)) return res.status(404).json({ error: { code: 'ARTICLE_NOT_FOUND', message: 'article not found' } })
++  app.delete('/api/articles/:id', requireRole('admin'), async (req, res) => {
++    if (!await repository.remove(req.params.id)) return res.status(404).json({ error: { code: 'ARTICLE_NOT_FOUND', message: 'article not found' } })
+     res.sendStatus(204)
+   })
+ 
+diff --git a/server/database.js b/server/database.js
+index a022cd3..49f7117 100644
+--- a/server/database.js
++++ b/server/database.js
+@@ -3,6 +3,8 @@ import { dirname, resolve } from 'node:path'
+ import { backup, DatabaseSync } from 'node:sqlite'
+ import { fileURLToPath } from 'node:url'
+ import { seedArticles } from './data/seedArticles.js'
++import { createSqliteUserRepository } from './repositories/sqliteUserRepository.js'
++import { hashPassword } from './services/auth.js'
+ 
+ const migrationsDirectory = fileURLToPath(new URL('../database/migrations', import.meta.url))
+ 
+@@ -51,6 +53,12 @@ export function seedDatabase(database) {
+   return database.prepare('SELECT COUNT(*) AS count FROM articles').get().count
+ }
+ 
++export function seedAdmin(database, { username, password, displayName = '课程管理员' }) {
++  if (!username || !password) return null
++  const { salt, hash } = hashPassword(password)
++  return createSqliteUserRepository(database).upsert({ username, displayName, role: 'admin', passwordSalt: salt, passwordHash: hash })
++}
++
+ export async function backupDatabase(database, destination) {
+   ensureDatabaseDirectory(destination)
+   await backup(database, destination)
+diff --git a/server/index.js b/server/index.js
+index 3142dfd..4e698fc 100644
+--- a/server/index.js
++++ b/server/index.js
+@@ -1,21 +1,45 @@
+ import { createApp } from './app.js'
+-import { ensureDatabaseDirectory, migrateDatabase, openDatabase, seedDatabase } from './database.js'
++import { ensureDatabaseDirectory, migrateDatabase, openDatabase, seedAdmin, seedDatabase } from './database.js'
++import { migrateMysql, openMysqlPool, seedMysql, seedMysqlAdmin } from './mysqlDatabase.js'
++import { createMysqlArticleRepository } from './repositories/mysqlArticleRepository.js'
++import { createMysqlUserRepository } from './repositories/mysqlUserRepository.js'
+ import { createSqliteArticleRepository } from './repositories/sqliteArticleRepository.js'
++import { createSqliteUserRepository } from './repositories/sqliteUserRepository.js'
+ 
+ const port = Number(process.env.PORT) || 3000
+-const databasePath = process.env.DATABASE_PATH || './var/p2-blog.sqlite'
+-ensureDatabaseDirectory(databasePath)
+-const database = openDatabase(databasePath)
+-migrateDatabase(database)
+-seedDatabase(database)
++if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters')
++const admin = { username: process.env.ADMIN_USERNAME, password: process.env.ADMIN_PASSWORD }
++let repository
++let userRepository
++let closeDatabase
+ 
+-const server = createApp({ repository: createSqliteArticleRepository(database) }).listen(port, '0.0.0.0', () => {
++if (process.env.DB_DRIVER === 'mysql') {
++  const pool = openMysqlPool()
++  await migrateMysql(pool)
++  repository = createMysqlArticleRepository(pool)
++  userRepository = createMysqlUserRepository(pool)
++  await seedMysql(pool)
++  await seedMysqlAdmin(userRepository, admin)
++  closeDatabase = () => pool.end()
++} else {
++  const databasePath = process.env.DATABASE_PATH || './var/p2-blog.sqlite'
++  ensureDatabaseDirectory(databasePath)
++  const database = openDatabase(databasePath)
++  migrateDatabase(database)
++  seedDatabase(database)
++  seedAdmin(database, admin)
++  repository = createSqliteArticleRepository(database)
++  userRepository = createSqliteUserRepository(database)
++  closeDatabase = () => database.close()
++}
++
++const server = createApp({ repository, userRepository }).listen(port, '0.0.0.0', () => {
+   console.log(`P2 API listening on http://127.0.0.1:${port}`)
+ })
+ 
+ function shutdown() {
+-  server.close(() => {
+-    database.close()
++  server.close(async () => {
++    await closeDatabase()
+     process.exit(0)
+   })
+ }
+diff --git a/server/mysqlDatabase.js b/server/mysqlDatabase.js
+new file mode 100644
+index 0000000..76f746d
+--- /dev/null
++++ b/server/mysqlDatabase.js
+@@ -0,0 +1,59 @@
++import { readdir, readFile } from 'node:fs/promises'
++import { fileURLToPath } from 'node:url'
++import mysql from 'mysql2/promise'
++import { seedArticles } from './data/seedArticles.js'
++import { hashPassword } from './services/auth.js'
++
++const migrationsDirectory = fileURLToPath(new URL('../database/mysql/migrations', import.meta.url))
++
++export function mysqlConfig(env = process.env) {
++  const required = ['MYSQL_HOST', 'MYSQL_DATABASE', 'MYSQL_USER', 'MYSQL_PASSWORD']
++  for (const name of required) if (!env[name]) throw new Error(`Missing environment variable: ${name}`)
++  return { host: env.MYSQL_HOST, port: Number(env.MYSQL_PORT) || 3306, database: env.MYSQL_DATABASE, user: env.MYSQL_USER, password: env.MYSQL_PASSWORD, charset: 'utf8mb4', connectionLimit: 5, multipleStatements: true, timezone: 'Z', dateStrings: true }
++}
++
++export function openMysqlPool(env = process.env) {
++  return mysql.createPool(mysqlConfig(env))
++}
++
++export async function migrateMysql(pool, directory = migrationsDirectory) {
++  await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
++    version VARCHAR(255) PRIMARY KEY,
++    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
++  ) ENGINE=InnoDB`)
++  const [rows] = await pool.query('SELECT version FROM schema_migrations')
++  const applied = new Set(rows.map((row) => row.version))
++  const migrations = (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort()
++  const completed = []
++  for (const migration of migrations) {
++    if (applied.has(migration)) continue
++    const connection = await pool.getConnection()
++    try {
++      await connection.beginTransaction()
++      await connection.query(await readFile(new URL(`../database/mysql/migrations/${migration}`, import.meta.url), 'utf8'))
++      await connection.execute('INSERT INTO schema_migrations(version) VALUES (?)', [migration])
++      await connection.commit()
++      completed.push(migration)
++    } catch (error) {
++      await connection.rollback()
++      throw error
++    } finally { connection.release() }
++  }
++  return completed
++}
++
++export async function seedMysql(pool) {
++  for (const article of seedArticles) {
++    await pool.execute(`INSERT IGNORE INTO articles
++      (id, slug, title, summary, content_json, tags_json, status, author, published_at)
++      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [article.id, article.slug, article.title, article.summary, JSON.stringify(article.content), JSON.stringify(article.tags), article.status, article.author, article.publishedAt])
++  }
++  const [[row]] = await pool.query('SELECT COUNT(*) AS count FROM articles')
++  return Number(row.count)
++}
++
++export async function seedMysqlAdmin(userRepository, { username, password, displayName = '课程管理员' }) {
++  if (!username || !password) return null
++  const { salt, hash } = hashPassword(password)
++  return userRepository.upsert({ username, displayName, role: 'admin', passwordSalt: salt, passwordHash: hash })
++}
+diff --git a/server/repositories/mysqlArticleRepository.js b/server/repositories/mysqlArticleRepository.js
+new file mode 100644
+index 0000000..77ee07a
+--- /dev/null
++++ b/server/repositories/mysqlArticleRepository.js
+@@ -0,0 +1,40 @@
++function jsonValue(value) {
++  return Array.isArray(value) ? value : JSON.parse(value || '[]')
++}
++
++function toArticle(row) {
++  if (!row) return null
++  return { id: Number(row.id), slug: row.slug, title: row.title, summary: row.summary, content: jsonValue(row.content_json), tags: jsonValue(row.tags_json), status: row.status, author: row.author, publishedAt: String(row.published_at).slice(0, 10) }
++}
++
++export function createMysqlArticleRepository(pool) {
++  const columns = 'id, slug, title, summary, content_json, tags_json, status, author, published_at'
++  return {
++    async list({ status, query = '', page = 1, pageSize = 20 } = {}) {
++      const where = []
++      const params = []
++      if (status) { where.push('status = ?'); params.push(status) }
++      if (query) { where.push("LOWER(CONCAT(title, ' ', summary, ' ', tags_json)) LIKE LOWER(?)"); params.push(`%${query}%`) }
++      const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
++      const [[count]] = await pool.execute(`SELECT COUNT(*) AS total FROM articles ${clause}`, params)
++      const [rows] = await pool.execute(`SELECT ${columns} FROM articles ${clause} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?`, [...params, Number(pageSize), Number((page - 1) * pageSize)])
++      return { items: rows.map(toArticle), total: Number(count.total) }
++    },
++    async find(id) {
++      const [rows] = await pool.execute(`SELECT ${columns} FROM articles WHERE id = ?`, [Number(id)])
++      return toArticle(rows[0])
++    },
++    async create(input) {
++      const [result] = await pool.execute(`INSERT INTO articles (slug, title, summary, content_json, tags_json, status, author, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [input.slug, input.title, input.summary, JSON.stringify(input.content), JSON.stringify(input.tags), input.status, input.author, input.publishedAt])
++      return this.find(result.insertId)
++    },
++    async update(id, input) {
++      const [result] = await pool.execute(`UPDATE articles SET slug = ?, title = ?, summary = ?, content_json = ?, tags_json = ?, status = ?, author = ?, published_at = ? WHERE id = ?`, [input.slug, input.title, input.summary, JSON.stringify(input.content), JSON.stringify(input.tags), input.status, input.author, input.publishedAt, Number(id)])
++      return result.affectedRows ? this.find(id) : null
++    },
++    async remove(id) {
++      const [result] = await pool.execute('DELETE FROM articles WHERE id = ?', [Number(id)])
++      return result.affectedRows > 0
++    },
++  }
++}
+diff --git a/server/repositories/mysqlUserRepository.js b/server/repositories/mysqlUserRepository.js
+new file mode 100644
+index 0000000..9f9a1be
+--- /dev/null
++++ b/server/repositories/mysqlUserRepository.js
+@@ -0,0 +1,14 @@
++export function createMysqlUserRepository(pool) {
++  return {
++    async findByUsername(username) {
++      const [rows] = await pool.execute('SELECT id, username, display_name AS displayName, role, password_salt AS passwordSalt, password_hash AS passwordHash FROM users WHERE username = ?', [username])
++      return rows[0] ?? null
++    },
++    async upsert({ username, displayName, role, passwordSalt, passwordHash }) {
++      await pool.execute(`INSERT INTO users(username, display_name, role, password_salt, password_hash)
++        VALUES (?, ?, ?, ?, ?)
++        ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), role = VALUES(role), password_salt = VALUES(password_salt), password_hash = VALUES(password_hash)`, [username, displayName, role, passwordSalt, passwordHash])
++      return this.findByUsername(username)
++    },
++  }
++}
+diff --git a/server/repositories/sqliteUserRepository.js b/server/repositories/sqliteUserRepository.js
+new file mode 100644
+index 0000000..98b35a6
+--- /dev/null
++++ b/server/repositories/sqliteUserRepository.js
+@@ -0,0 +1,13 @@
++export function createSqliteUserRepository(database) {
++  return {
++    findByUsername(username) {
++      return database.prepare('SELECT id, username, display_name AS displayName, role, password_salt AS passwordSalt, password_hash AS passwordHash FROM users WHERE username = ?').get(username) ?? null
++    },
++    upsert({ username, displayName, role, passwordSalt, passwordHash }) {
++      database.prepare(`INSERT INTO users(username, display_name, role, password_salt, password_hash)
++        VALUES (?, ?, ?, ?, ?)
++        ON CONFLICT(username) DO UPDATE SET display_name = excluded.display_name, role = excluded.role, password_salt = excluded.password_salt, password_hash = excluded.password_hash`).run(username, displayName, role, passwordSalt, passwordHash)
++      return this.findByUsername(username)
++    },
++  }
++}
+diff --git a/server/services/auth.js b/server/services/auth.js
+new file mode 100644
+index 0000000..5142895
+--- /dev/null
++++ b/server/services/auth.js
+@@ -0,0 +1,42 @@
++import crypto from 'node:crypto'
++
++const TOKEN_TTL_SECONDS = 8 * 60 * 60
++
++export function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
++  if (typeof password !== 'string' || password.length < 12) throw new Error('password must contain at least 12 characters')
++  return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') }
++}
++
++export function verifyPassword(password, salt, expectedHash) {
++  if (!password || !salt || !expectedHash) return false
++  const actual = crypto.scryptSync(password, salt, 64)
++  const expected = Buffer.from(expectedHash, 'hex')
++  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected)
++}
++
++export function createAccessToken(user, secret, now = Date.now()) {
++  if (!secret || secret.length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters')
++  const payload = Buffer.from(JSON.stringify({ sub: user.id, role: user.role, username: user.username, exp: Math.floor(now / 1000) + TOKEN_TTL_SECONDS })).toString('base64url')
++  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
++  return `${payload}.${signature}`
++}
++
++export function verifyAccessToken(token, secret, now = Date.now()) {
++  if (!token || !secret) return null
++  const [payload, signature, extra] = token.split('.')
++  if (!payload || !signature || extra) return null
++  const expected = crypto.createHmac('sha256', secret).update(payload).digest()
++  const actual = Buffer.from(signature, 'base64url')
++  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null
++  try {
++    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
++    // TODO-A：恢复有效令牌判断
++    return null
++  } catch { return null }
++}
++
++export function readBearerToken(header = '') {
++  const match = /^Bearer\s+(.+)$/i.exec(header)
++  // TODO-B：提取 Bearer 令牌
++  return ''
++}
+diff --git a/src/App.vue b/src/App.vue
+index e97e9c7..d90d89e 100644
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -1,5 +1,10 @@
+ <script setup>
++import { storeToRefs } from 'pinia'
+ import AppShell from './components/AppShell.vue'
++import { useAuthStore } from './stores/auth.js'
++
++const auth = useAuthStore()
++const { loggedIn, user } = storeToRefs(auth)
+ </script>
+ 
+ <template>
+@@ -9,6 +14,8 @@ import AppShell from './components/AppShell.vue'
+       <RouterLink to="/">文章</RouterLink>
+       <RouterLink to="/about">关于</RouterLink>
+       <RouterLink to="/admin/articles">管理</RouterLink>
++      <span v-if="loggedIn" class="auth-summary">{{ user.displayName }} <button type="button" @click="auth.logout">退出</button></span>
++      <RouterLink v-else to="/login">登录</RouterLink>
+     </template>
+     <RouterView />
+   </AppShell>
+diff --git a/src/components/AppShell.vue b/src/components/AppShell.vue
+index 790a101..40cceb1 100644
+--- a/src/components/AppShell.vue
++++ b/src/components/AppShell.vue
+@@ -5,6 +5,6 @@
+       <nav aria-label="主导航"><slot name="navigation" /></nav>
+     </header>
+     <main id="main-content" class="main-content"><slot /></main>
+-    <footer class="site-footer">P2 v2.1 · SQLite 持久化</footer>
++    <footer class="site-footer">P2 v2.2 · MySQL 与权限</footer>
+   </div>
+ </template>
+diff --git a/src/router.js b/src/router.js
+index 4db8a3e..1fb99b3 100644
+--- a/src/router.js
++++ b/src/router.js
+@@ -6,18 +6,25 @@ import ArticleView from './views/ArticleView.vue'
+ import HomeView from './views/HomeView.vue'
+ import NotFoundView from './views/NotFoundView.vue'
+ import PreviewView from './views/PreviewView.vue'
++import LoginView from './views/LoginView.vue'
++import { getAccessToken } from './services/authSession.js'
+ 
+-export default createRouter({
++const router = createRouter({
+   history: createWebHistory(import.meta.env.BASE_URL),
+   routes: [
+     { path: '/', name: 'home', component: HomeView },
+     { path: '/tags/:tag', name: 'tag', component: HomeView, props: true },
+     { path: '/articles/:slug', name: 'article', component: ArticleView, props: true },
+     { path: '/about', name: 'about', component: AboutView },
+-    { path: '/admin/articles', name: 'admin-articles', component: AdminArticlesView },
+-    { path: '/admin/articles/new', name: 'article-new', component: ArticleFormView },
+-    { path: '/admin/articles/:id/edit', name: 'article-edit', component: ArticleFormView, props: true },
+-    { path: '/admin/articles/:id/preview', name: 'article-preview', component: PreviewView, props: true },
++    { path: '/login', name: 'login', component: LoginView },
++    { path: '/admin/articles', name: 'admin-articles', component: AdminArticlesView, meta: { requiresAuth: true } },
++    { path: '/admin/articles/new', name: 'article-new', component: ArticleFormView, meta: { requiresAuth: true } },
++    { path: '/admin/articles/:id/edit', name: 'article-edit', component: ArticleFormView, props: true, meta: { requiresAuth: true } },
++    { path: '/admin/articles/:id/preview', name: 'article-preview', component: PreviewView, props: true, meta: { requiresAuth: true } },
+     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
+   ],
+ })
++
++router.beforeEach((to) => to.meta.requiresAuth && !getAccessToken() ? { name: 'login', query: { redirect: to.fullPath } } : true)
++
++export default router
+diff --git a/src/services/articleApi.js b/src/services/articleApi.js
+index e095239..1dfa0c2 100644
+--- a/src/services/articleApi.js
++++ b/src/services/articleApi.js
+@@ -1,9 +1,12 @@
++import { getAccessToken } from './authSession.js'
++
+ const apiBase = String(import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '')
+ 
+ async function request(path, options = {}, fetcher = fetch) {
++  const token = getAccessToken()
+   const response = await fetcher(`${apiBase}${path}`, {
+     ...options,
+-    headers: { 'content-type': 'application/json', ...options.headers },
++    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...options.headers },
+   })
+   if (response.status === 204) return null
+   const body = await response.json().catch(() => ({}))
+diff --git a/src/services/authApi.js b/src/services/authApi.js
+new file mode 100644
+index 0000000..82da0c6
+--- /dev/null
++++ b/src/services/authApi.js
+@@ -0,0 +1,10 @@
++export async function loginRequest(credentials, fetcher = fetch) {
++  const response = await fetcher('/api/auth/login', {
++    method: 'POST',
++    headers: { 'content-type': 'application/json' },
++    body: JSON.stringify(credentials),
++  })
++  const body = await response.json().catch(() => ({}))
++  if (!response.ok) throw new Error(body.error?.message || '登录失败')
++  return body.data
++}
+diff --git a/src/services/authSession.js b/src/services/authSession.js
+new file mode 100644
+index 0000000..815259b
+--- /dev/null
++++ b/src/services/authSession.js
+@@ -0,0 +1,22 @@
++const key = 'ffd-p2-auth'
++
++function storage() {
++  return typeof sessionStorage === 'undefined' ? null : sessionStorage
++}
++
++export function readAuthSession() {
++  try { return JSON.parse(storage()?.getItem(key) || 'null') }
++  catch { return null }
++}
++
++export function saveAuthSession(session) {
++  storage()?.setItem(key, JSON.stringify(session))
++}
++
++export function clearAuthSession() {
++  storage()?.removeItem(key)
++}
++
++export function getAccessToken() {
++  return readAuthSession()?.token || ''
++}
+diff --git a/src/stores/auth.js b/src/stores/auth.js
+new file mode 100644
+index 0000000..caee993
+--- /dev/null
++++ b/src/stores/auth.js
+@@ -0,0 +1,32 @@
++import { defineStore } from 'pinia'
++import { loginRequest } from '../services/authApi.js'
++import { clearAuthSession, readAuthSession, saveAuthSession } from '../services/authSession.js'
++
++export const useAuthStore = defineStore('auth', {
++  state: () => ({ session: readAuthSession(), status: 'idle', errorMessage: '' }),
++  getters: {
++    loggedIn: (state) => Boolean(state.session?.token),
++    user: (state) => state.session?.user || null,
++  },
++  actions: {
++    async login(credentials, request = loginRequest) {
++      this.status = 'loading'
++      this.errorMessage = ''
++      try {
++        this.session = await request(credentials)
++        saveAuthSession(this.session)
++        this.status = 'success'
++        return true
++      } catch (error) {
++        this.status = 'error'
++        this.errorMessage = error.message
++        return false
++      }
++    },
++    logout() {
++      clearAuthSession()
++      this.session = null
++      this.status = 'idle'
++    },
++  },
++})
+diff --git a/src/styles/main.css b/src/styles/main.css
+index 38406de..33bacdf 100644
+--- a/src/styles/main.css
++++ b/src/styles/main.css
+@@ -18,6 +18,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid #d58b36; outline-offs
+ .site-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.4rem 0; border-bottom: 1px solid #cbc4b5; }
+ .brand { color: #20231f; font-family: Georgia, "Songti SC", serif; font-size: 1.45rem; font-weight: 700; text-decoration: none; }
+ nav { display: flex; gap: 1rem; }
++.auth-summary { display: inline-flex; align-items: center; gap: 0.4rem; }
++.auth-summary button { border: 0; padding: 0; color: #315f53; background: transparent; cursor: pointer; text-decoration: underline; }
+ nav a.router-link-active { font-weight: 700; }
+ .main-content { min-height: 75vh; padding: 4rem 0; }
+ .section-heading { margin-bottom: 2rem; }
+@@ -43,6 +45,7 @@ h1 { margin: 0.3rem 0; font-size: clamp(2rem, 5vw, 4rem); }
+ .status-badge { margin-left: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 999px; background: #e6e0d4; font-size: 0.8rem; }
+ .button-link, form button, .admin-row button { display: inline-block; border: 0; border-radius: 0.5rem; padding: 0.55rem 0.9rem; color: #fff; background: #315f53; cursor: pointer; text-decoration: none; }
+ .form-card { max-width: 50rem; margin: 0 auto; }
++.login-card { max-width: 30rem; }
+ .field { display: grid; gap: 0.35rem; margin: 1rem 0; font-weight: 700; }
+ .field input, .field textarea, .field select { width: 100%; border: 1px solid #9b9283; border-radius: 0.4rem; padding: 0.65rem; background: #fff; }
+ .field-error { color: #a12e22; font-size: 0.9rem; }
+diff --git a/src/views/LoginView.vue b/src/views/LoginView.vue
+new file mode 100644
+index 0000000..844682e
+--- /dev/null
++++ b/src/views/LoginView.vue
+@@ -0,0 +1,28 @@
++<script setup>
++import { reactive } from 'vue'
++import { useRoute, useRouter } from 'vue-router'
++import { useAuthStore } from '../stores/auth.js'
++
++const auth = useAuthStore()
++const route = useRoute()
++const router = useRouter()
++const form = reactive({ username: '', password: '' })
++
++async function submit() {
++  if (await auth.login(form)) router.replace(String(route.query.redirect || '/admin/articles'))
++}
++</script>
++
++<template>
++  <section class="form-card login-card">
++    <p class="eyebrow">管理端身份验证</p>
++    <h1>登录</h1>
++    <p>登录状态仅保存在当前浏览器标签页；关闭标签页后需要重新登录。</p>
++    <form novalidate @submit.prevent="submit">
++      <p v-if="auth.errorMessage" class="field-error" role="alert">{{ auth.errorMessage }}</p>
++      <label class="field">用户名<input v-model.trim="form.username" autocomplete="username" required /></label>
++      <label class="field">密码<input v-model="form.password" type="password" autocomplete="current-password" required /></label>
++      <button type="submit" :disabled="auth.status === 'loading'">{{ auth.status === 'loading' ? '登录中…' : '登录' }}</button>
++    </form>
++  </section>
++</template>
+diff --git a/tests/api.test.mjs b/tests/api.test.mjs
+index 54b662b..3ef7806 100644
+--- a/tests/api.test.mjs
++++ b/tests/api.test.mjs
+@@ -2,12 +2,17 @@ import test from 'node:test'
+ import assert from 'node:assert/strict'
+ import { createApp } from '../server/app.js'
+ import { createMemoryArticleRepository } from '../server/repositories/memoryArticleRepository.js'
++import { createAccessToken, hashPassword } from '../server/services/auth.js'
+ 
+ const seed = [{ id: 1, slug: 'one', title: '第一篇', summary: '摘要', content: ['正文'], tags: ['Vue'], status: 'published', author: '林晓', publishedAt: '2026-09-01' }]
+ const validInput = { title: '新文章', summary: '新摘要', content: ['正文'], tags: ['REST'], status: 'draft' }
++const testSecret = 'test-session-secret-at-least-32-characters'
++const credentials = { username: 'teacher', password: 'classroom-password-123' }
++const passwordRecord = hashPassword(credentials.password, '00112233445566778899aabbccddeeff')
++const admin = { id: 1, username: credentials.username, displayName: '教师', role: 'admin', passwordSalt: passwordRecord.salt, passwordHash: passwordRecord.hash }
+ 
+ async function withApi(run) {
+-  const app = createApp({ repository: createMemoryArticleRepository(seed), logger: { info() {}, error() {} } })
++  const app = createApp({ repository: createMemoryArticleRepository(seed), userRepository: { findByUsername: async (username) => username === admin.username ? admin : null }, tokenSecret: testSecret, logger: { info() {}, error() {} } })
+   const server = await new Promise((resolve) => {
+     const listener = app.listen(0, '127.0.0.1', () => resolve(listener))
+   })
+@@ -16,6 +21,16 @@ async function withApi(run) {
+   finally { await new Promise((resolve) => server.close(resolve)) }
+ }
+ 
++async function login(base, input = credentials) {
++  const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) })
++  return { response, body: await response.json() }
++}
++
++async function authorizedHeaders(base) {
++  const { body } = await login(base)
++  return { 'content-type': 'application/json', authorization: `Bearer ${body.data.token}` }
++}
++
+ test('健康检查不泄露配置', () => withApi(async (base) => {
+   const response = await fetch(`${base}/health`)
+   assert.equal(response.status, 200)
+@@ -41,7 +56,7 @@ test('GET 列表返回受上限保护的分页元数据', () => withApi(async (b
+ }))
+ 
+ test('POST 正常创建并可再次读取', () => withApi(async (base) => {
+-  const created = await fetch(`${base}/api/articles`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validInput) })
++  const created = await fetch(`${base}/api/articles`, { method: 'POST', headers: await authorizedHeaders(base), body: JSON.stringify(validInput) })
+   assert.equal(created.status, 201)
+   const article = (await created.json()).data
+   const found = await fetch(`${base}/api/articles/${article.id}`)
+@@ -49,7 +64,7 @@ test('POST 正常创建并可再次读取', () => withApi(async (base) => {
+ }))
+ 
+ test('POST 边界输入返回稳定 400 字段错误', () => withApi(async (base) => {
+-  const response = await fetch(`${base}/api/articles`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...validInput, title: '' }) })
++  const response = await fetch(`${base}/api/articles`, { method: 'POST', headers: await authorizedHeaders(base), body: JSON.stringify({ ...validInput, title: '' }) })
+   const body = await response.json()
+   assert.equal(response.status, 400)
+   assert.equal(body.error.code, 'VALIDATION_ERROR')
+@@ -57,13 +72,13 @@ test('POST 边界输入返回稳定 400 字段错误', () => withApi(async (base
+ }))
+ 
+ test('PUT 更新不存在文章返回 404', () => withApi(async (base) => {
+-  const response = await fetch(`${base}/api/articles/999`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validInput) })
++  const response = await fetch(`${base}/api/articles/999`, { method: 'PUT', headers: await authorizedHeaders(base), body: JSON.stringify(validInput) })
+   assert.equal(response.status, 404)
+   assert.equal((await response.json()).error.code, 'ARTICLE_NOT_FOUND')
+ }))
+ 
+ test('DELETE 删除后再次读取返回 404', () => withApi(async (base) => {
+-  assert.equal((await fetch(`${base}/api/articles/1`, { method: 'DELETE' })).status, 204)
++  assert.equal((await fetch(`${base}/api/articles/1`, { method: 'DELETE', headers: await authorizedHeaders(base) })).status, 204)
+   assert.equal((await fetch(`${base}/api/articles/1`)).status, 404)
+ }))
+ 
+@@ -73,6 +88,34 @@ test('损坏 JSON 返回 400 而不是 500', () => withApi(async (base) => {
+   assert.equal((await response.json()).error.code, 'INVALID_JSON')
+ }))
+ 
++test('登录成功返回角色和签名令牌', () => withApi(async (base) => {
++  const { response, body } = await login(base)
++  assert.equal(response.status, 200)
++  assert.equal(body.data.user.role, 'admin')
++  assert.equal(body.data.token.split('.').length, 2)
++}))
++
++test('错误账号或密码统一返回 401', () => withApi(async (base) => {
++  const { response, body } = await login(base, { username: 'missing', password: 'wrong-password' })
++  assert.equal(response.status, 401)
++  assert.equal(body.error.code, 'INVALID_CREDENTIALS')
++}))
++
++test('未登录写操作返回 401', () => withApi(async (base) => {
++  const response = await fetch(`${base}/api/articles`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validInput) })
++  assert.equal(response.status, 401)
++  assert.equal((await response.json()).error.code, 'AUTH_REQUIRED')
++}))
++
++test('作者可以保存但不能删除文章', () => withApi(async (base) => {
++  const authorToken = createAccessToken({ id: 2, username: 'author', role: 'author' }, testSecret)
++  const headers = { 'content-type': 'application/json', authorization: `Bearer ${authorToken}` }
++  assert.equal((await fetch(`${base}/api/articles`, { method: 'POST', headers, body: JSON.stringify(validInput) })).status, 201)
++  const response = await fetch(`${base}/api/articles/1`, { method: 'DELETE', headers })
++  assert.equal(response.status, 403)
++  assert.equal((await response.json()).error.code, 'FORBIDDEN')
++}))
++
+ test('OPTIONS 返回 CORS 许可', () => withApi(async (base) => {
+   const response = await fetch(`${base}/api/articles`, { method: 'OPTIONS' })
+   assert.equal(response.status, 204)
+diff --git a/tests/article-api.test.mjs b/tests/article-api.test.mjs
+index 7531a73..c611f6d 100644
+--- a/tests/article-api.test.mjs
++++ b/tests/article-api.test.mjs
+@@ -24,3 +24,19 @@ test('前端 API 客户端保留状态码和字段错误', async () => {
+     (error) => error.status === 400 && error.fields.title === 'title required',
+   )
+ })
++
++test('登录后写请求自动携带 Bearer 令牌', async () => {
++  globalThis.sessionStorage = {
++    getItem: () => JSON.stringify({ token: 'signed-token' }),
++    setItem() {},
++    removeItem() {},
++  }
++  let authorization
++  try {
++    await articleApi.create({ title: '文章' }, async (url, options) => {
++      authorization = options.headers.authorization
++      return { ok: true, status: 201, json: async () => ({ data: { id: 2 } }) }
++    })
++    assert.equal(authorization, 'Bearer signed-token')
++  } finally { delete globalThis.sessionStorage }
++})
+diff --git a/tests/auth.test.mjs b/tests/auth.test.mjs
+new file mode 100644
+index 0000000..71c48b2
+--- /dev/null
++++ b/tests/auth.test.mjs
+@@ -0,0 +1,26 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import { createAccessToken, hashPassword, readBearerToken, verifyAccessToken, verifyPassword } from '../server/services/auth.js'
++
++const secret = '0123456789abcdef0123456789abcdef'
++
++test('scrypt 密码哈希使用 salt 且可验证', () => {
++  const record = hashPassword('safe-password-123', 'aabbccddeeff00112233445566778899')
++  assert.equal(verifyPassword('safe-password-123', record.salt, record.hash), true)
++  assert.equal(verifyPassword('wrong-password', record.salt, record.hash), false)
++  assert.equal(record.hash.includes('safe-password-123'), false)
++})
++
++test('访问令牌可验证且篡改后失效', () => {
++  const user = { id: 7, username: 'teacher', role: 'admin' }
++  const token = createAccessToken(user, secret, 1_000_000)
++  assert.equal(verifyAccessToken(token, secret, 1_000_001).sub, 7)
++  assert.equal(verifyAccessToken(`${token}x`, secret, 1_000_001), null)
++})
++
++test('过期令牌和非 Bearer 头被拒绝', () => {
++  const token = createAccessToken({ id: 1, username: 'a', role: 'author' }, secret, 0)
++  assert.equal(verifyAccessToken(token, secret, 40_000_000), null)
++  assert.equal(readBearerToken(`Bearer ${token}`), token)
++  assert.equal(readBearerToken(`Basic ${token}`), '')
++})

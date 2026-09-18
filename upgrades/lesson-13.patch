@@ -1,0 +1,2429 @@
+diff --git a/.env.example b/.env.example
+new file mode 100644
+index 0000000..12e7310
+--- /dev/null
++++ b/.env.example
+@@ -0,0 +1,14 @@
++PORT=3020
++ALLOWED_ORIGIN=http://127.0.0.1:5173
++DB_DRIVER=sqlite
++DATABASE_PATH=./var/p3-community.sqlite
++MYSQL_HOST=127.0.0.1
++MYSQL_PORT=3306
++MYSQL_DATABASE=ffd_p3
++MYSQL_USER=ffd_p3_app
++MYSQL_PASSWORD=change-me
++SESSION_SECRET=change-me-at-least-32-characters
++MEMBER_USERNAME=student
++MEMBER_PASSWORD=change-me-at-least-12-characters
++REVIEWER_USERNAME=teacher
++REVIEWER_PASSWORD=change-me-at-least-12-characters
+diff --git a/README.md b/README.md
+index 6c1997e..d879d0e 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,5 @@
+-# 第12课 教师参考答案
++# 第13课 学生起点
+ 
+-完整项目：群像云图 v1.1。主修改文件：`src/domain/member.js`。
++本课任务：允许提交后的审核状态；校验审核者角色。主文件：`server/workflow.js`。页面能启动，待完成规则的对应测试可能失败，先读失败说明再补任务。其余功能是老师提供的工程基础，不要求全部手写。
+ 
+-安装运行见项目统一实操手册；先启动本地，自动测试、构建通过后发布。老师与学生均不要直接使用教师生产API。
++完整步骤见领取资料 `docs/lesson-13.md`。
+diff --git a/database/migrate.mjs b/database/migrate.mjs
+new file mode 100644
+index 0000000..845defc
+--- /dev/null
++++ b/database/migrate.mjs
+@@ -0,0 +1,2 @@
++import { migrateSqlite, openSqlite } from '../server/sqliteDatabase.js'
++const db=openSqlite(process.env.DATABASE_PATH||'./var/p3-community.sqlite');try{console.log(`SQLite 迁移完成：${migrateSqlite(db).join(', ')||'无需变更'}`)}finally{db.close()}
+diff --git a/database/migrations/001_initial.sql b/database/migrations/001_initial.sql
+new file mode 100644
+index 0000000..828d6eb
+--- /dev/null
++++ b/database/migrations/001_initial.sql
+@@ -0,0 +1,30 @@
++CREATE TABLE IF NOT EXISTS users (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  username TEXT NOT NULL UNIQUE,
++  display_name TEXT NOT NULL,
++  role TEXT NOT NULL CHECK(role IN ('member', 'reviewer')),
++  password_salt TEXT NOT NULL,
++  password_hash TEXT NOT NULL
++);
++
++CREATE TABLE IF NOT EXISTS members (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  name TEXT NOT NULL,
++  role_title TEXT NOT NULL,
++  cohort TEXT NOT NULL DEFAULT '',
++  location TEXT NOT NULL DEFAULT '',
++  bio TEXT NOT NULL DEFAULT '',
++  skills_json TEXT NOT NULL DEFAULT '[]',
++  interests_json TEXT NOT NULL DEFAULT '[]',
++  avatar TEXT NOT NULL DEFAULT '',
++  email TEXT NOT NULL UNIQUE,
++  status TEXT NOT NULL CHECK(status IN ('draft', 'submitted', 'approved', 'rejected')),
++  owner_id INTEGER,
++  reviewed_by INTEGER,
++  review_note TEXT NOT NULL DEFAULT '',
++  version INTEGER NOT NULL DEFAULT 1,
++  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
++  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
++  FOREIGN KEY(owner_id) REFERENCES users(id),
++  FOREIGN KEY(reviewed_by) REFERENCES users(id)
++);
+diff --git a/database/mysql/backup.mjs b/database/mysql/backup.mjs
+new file mode 100644
+index 0000000..8989230
+--- /dev/null
++++ b/database/mysql/backup.mjs
+@@ -0,0 +1,6 @@
++import { execFile } from 'node:child_process'
++import { mkdir, writeFile } from 'node:fs/promises'
++import { dirname, resolve } from 'node:path'
++import { promisify } from 'node:util'
++import { mysqlConfig } from '../../server/mysqlDatabase.js'
++const execute=promisify(execFile);const config=mysqlConfig();const destination=resolve(process.argv[2]||`./var/backups/mysql-p3-${new Date().toISOString().replaceAll(':','-').replaceAll('.','-')}.sql`);await mkdir(dirname(destination),{recursive:true});const{stdout}=await execute('mysqldump',['--single-transaction','--skip-lock-tables','--no-tablespaces','--set-gtid-purged=OFF','-h',config.host,'-P',String(config.port),'-u',config.user,config.database],{env:{...process.env,MYSQL_PWD:config.password},encoding:'buffer',maxBuffer:50*1024*1024});await writeFile(destination,stdout,{mode:0o600});console.log(`MySQL 备份完成：${destination}`)
+diff --git a/database/mysql/migrate.mjs b/database/mysql/migrate.mjs
+new file mode 100644
+index 0000000..46af269
+--- /dev/null
++++ b/database/mysql/migrate.mjs
+@@ -0,0 +1,2 @@
++import { migrateMysql, openMysqlPool } from '../../server/mysqlDatabase.js'
++const pool=openMysqlPool();try{console.log(`MySQL 迁移完成：${(await migrateMysql(pool)).join(', ')||'无需变更'}`)}finally{await pool.end()}
+diff --git a/database/mysql/migrations/001_initial.sql b/database/mysql/migrations/001_initial.sql
+new file mode 100644
+index 0000000..240c430
+--- /dev/null
++++ b/database/mysql/migrations/001_initial.sql
+@@ -0,0 +1,31 @@
++CREATE TABLE IF NOT EXISTS users (
++  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
++  username VARCHAR(80) NOT NULL UNIQUE,
++  display_name VARCHAR(120) NOT NULL,
++  role ENUM('member','reviewer') NOT NULL,
++  password_salt CHAR(32) NOT NULL,
++  password_hash CHAR(128) NOT NULL
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
++
++CREATE TABLE IF NOT EXISTS members (
++  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
++  name VARCHAR(40) NOT NULL,
++  role_title VARCHAR(60) NOT NULL,
++  cohort VARCHAR(60) NOT NULL DEFAULT '',
++  location VARCHAR(80) NOT NULL DEFAULT '',
++  bio VARCHAR(300) NOT NULL DEFAULT '',
++  skills_json JSON NOT NULL,
++  interests_json JSON NOT NULL,
++  avatar VARCHAR(500) NOT NULL DEFAULT '',
++  email VARCHAR(254) NOT NULL UNIQUE,
++  status ENUM('draft','submitted','approved','rejected') NOT NULL DEFAULT 'submitted',
++  owner_id BIGINT UNSIGNED NULL,
++  reviewed_by BIGINT UNSIGNED NULL,
++  review_note VARCHAR(300) NOT NULL DEFAULT '',
++  version INT UNSIGNED NOT NULL DEFAULT 1,
++  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
++  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
++  CONSTRAINT fk_members_owner FOREIGN KEY(owner_id) REFERENCES users(id),
++  CONSTRAINT fk_members_reviewer FOREIGN KEY(reviewed_by) REFERENCES users(id),
++  INDEX idx_members_status(status)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+diff --git a/database/mysql/restore.mjs b/database/mysql/restore.mjs
+new file mode 100644
+index 0000000..71ae9a1
+--- /dev/null
++++ b/database/mysql/restore.mjs
+@@ -0,0 +1,5 @@
++import { createReadStream } from 'node:fs'
++import { access } from 'node:fs/promises'
++import { spawn } from 'node:child_process'
++import { mysqlConfig } from '../../server/mysqlDatabase.js'
++const source=process.argv[2];if(!source){console.error('用法：npm run db:mysql:restore -- <备份 SQL 路径>');process.exit(1)}await access(source);const config=mysqlConfig();const child=spawn('mysql',['-h',config.host,'-P',String(config.port),'-u',config.user,config.database],{env:{...process.env,MYSQL_PWD:config.password},stdio:['pipe','inherit','inherit']});createReadStream(source).pipe(child.stdin);const code=await new Promise((resolve)=>child.once('close',resolve));if(code!==0)process.exit(code);console.log('MySQL 恢复完成，请运行 db:mysql:verify。')
+diff --git a/database/mysql/verify.mjs b/database/mysql/verify.mjs
+new file mode 100644
+index 0000000..dee60ec
+--- /dev/null
++++ b/database/mysql/verify.mjs
+@@ -0,0 +1,2 @@
++import { openMysqlPool } from '../../server/mysqlDatabase.js'
++const pool=openMysqlPool();try{const[[tables]]=await pool.query("SELECT COUNT(*) count FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('users','members','schema_migrations')");const[[members]]=await pool.query('SELECT COUNT(*) count FROM members');if(Number(tables.count)!==3)throw new Error(`expected 3 tables, found ${tables.count}`);console.log(`MySQL 验证通过：3 张表，${members.count} 条成员记录。`)}finally{await pool.end()}
+diff --git a/docs/api-contract.md b/docs/api-contract.md
+new file mode 100644
+index 0000000..f7bd48d
+--- /dev/null
++++ b/docs/api-contract.md
+@@ -0,0 +1,15 @@
++# P3 v2.0 API 契约
++
++| 方法 | 路径 | 权限 | 成功 | 主要失败 |
++| --- | --- | --- | --- | --- |
++| GET | `/health` | 公开 | 200 | 服务不可达 |
++| POST | `/api/auth/login` | 公开 | 200 + token | 401 |
++| GET | `/api/members` | 公开 | 200 已通过画像 | — |
++| POST | `/api/members` | member/reviewer | 201 待审核记录 | 400/401 |
++| GET | `/api/review/members` | reviewer | 200 全部记录 | 401/403 |
++| PATCH | `/api/review/members/:id/status` | reviewer | 200 | 400/401/403/404 |
++| POST | `/api/import/preview` | reviewer | 200 行预览 | 400 含行号 |
++| POST | `/api/import` | reviewer | 201 导入数量 | 400/409，整批不写入 |
++| GET | `/api/export` | reviewer | 200 UTF-8 CSV | 401/403 |
++
++Bearer token 有效期 8 小时。日志只记录 request ID、方法、路径、状态和耗时，不记录密码、token、CSV 正文或完整成员资料。
+diff --git a/docs/permission-matrix.md b/docs/permission-matrix.md
+new file mode 100644
+index 0000000..07e1f2f
+--- /dev/null
++++ b/docs/permission-matrix.md
+@@ -0,0 +1,13 @@
++# P3 v2.0 权限与状态矩阵
++
++| 操作 | 访客 | member | reviewer |
++| --- | --- | --- | --- |
++| 查看已通过画像 | 允许 | 允许 | 允许 |
++| 提交本人资料 | 401 | 允许 | 允许 |
++| 查看全部审核记录 | 401 | 403 | 允许 |
++| 通过或驳回 | 401 | 403 | 允许 |
++| CSV 预览/导入/导出 | 401 | 403 | 允许 |
++
++状态只允许：`draft → submitted`、`submitted → approved/rejected`、`rejected → submitted`。已通过资料不能直接改成驳回；需要建立新的变更申请，保留审计含义。
++
++服务器执行顺序：识别令牌 → 检查角色 → 校验输入/状态 → 数据库事务 → 返回最少结果。隐藏前端按钮不能替代服务器授权。
+diff --git a/index.html b/index.html
+index 4a330b3..f32fd5c 100644
+--- a/index.html
++++ b/index.html
+@@ -4,7 +4,7 @@
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <meta name="description" content="群像云图：只展示经授权的成员公开资料。" />
+-    <title>群像云图｜P3 v1.1</title>
++    <title>群像云图｜P3 v2.0</title>
+   </head>
+   <body>
+     <a class="skip-link" href="#members">跳到成员列表</a>
+diff --git a/package-lock.json b/package-lock.json
+index d57f795..8bc971c 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,14 +1,16 @@
+ {
+   "name": "ffd-p3-community",
+-  "version": "1.1.0",
++  "version": "2.0.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "ffd-p3-community",
+-      "version": "1.1.0",
++      "version": "2.0.0",
+       "dependencies": {
+         "echarts": "^6.1.0",
++        "express": "^5.2.1",
++        "mysql2": "^3.24.3",
+         "vue": "^3.5.0"
+       },
+       "devDependencies": {
+@@ -913,6 +915,16 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/@types/node": {
++      "version": "26.4.1",
++      "resolved": "https://registry.npmjs.org/@types/node/-/node-26.4.1.tgz",
++      "integrity": "sha512-k97ENvZWtvA6yqz5/FS6a7duDgOPEeOQOc2iKS/nY6mX6qJUKtLnWzQS+Xj6tXweyj6ZcTAK2Qecetnvi9nCLA==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "undici-types": "~8.3.0"
++      }
++    },
+     "node_modules/@vitejs/plugin-vue": {
+       "version": "6.0.8",
+       "resolved": "https://registry.npmjs.org/@vitejs/plugin-vue/-/plugin-vue-6.0.8.tgz",
+@@ -1155,6 +1167,19 @@
+       "integrity": "sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==",
+       "license": "MIT"
+     },
++    "node_modules/accepts": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/accepts/-/accepts-2.0.0.tgz",
++      "integrity": "sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==",
++      "license": "MIT",
++      "dependencies": {
++        "mime-types": "^3.0.0",
++        "negotiator": "^1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
+     "node_modules/assertion-error": {
+       "version": "2.0.1",
+       "resolved": "https://registry.npmjs.org/assertion-error/-/assertion-error-2.0.1.tgz",
+@@ -1165,6 +1190,61 @@
+         "node": ">=12"
+       }
+     },
++    "node_modules/aws-ssl-profiles": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/aws-ssl-profiles/-/aws-ssl-profiles-1.1.2.tgz",
++      "integrity": "sha512-NZKeq9AfyQvEeNlN0zSYAaWrmBffJh3IELMZfRpJVWgrpEbtEpnjvzqBPf+mxoI287JohRDoa+/nsfqqiZmF6g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 6.0.0"
++      }
++    },
++    "node_modules/body-parser": {
++      "version": "2.3.0",
++      "resolved": "https://registry.npmjs.org/body-parser/-/body-parser-2.3.0.tgz",
++      "integrity": "sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==",
++      "license": "MIT",
++      "dependencies": {
++        "bytes": "^3.1.2",
++        "content-type": "^2.0.0",
++        "debug": "^4.4.3",
++        "http-errors": "^2.0.1",
++        "iconv-lite": "^0.7.2",
++        "on-finished": "^2.4.1",
++        "qs": "^6.15.2",
++        "raw-body": "^3.0.2",
++        "type-is": "^2.1.0"
++      },
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/body-parser/node_modules/content-type": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/content-type/-/content-type-2.1.0.tgz",
++      "integrity": "sha512-mj7UPXE0jaqaOsukNZRUEfEi2AcL7C/vwmwcHV0O97eO1E1pxBZuyjlZrx5seTaNBg1U6+o35wpa35Qfcc+7ag==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/bytes": {
++      "version": "3.1.2",
++      "resolved": "https://registry.npmjs.org/bytes/-/bytes-3.1.2.tgz",
++      "integrity": "sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
+     "node_modules/cac": {
+       "version": "6.7.14",
+       "resolved": "https://registry.npmjs.org/cac/-/cac-6.7.14.tgz",
+@@ -1175,6 +1255,35 @@
+         "node": ">=8"
+       }
+     },
++    "node_modules/call-bind-apply-helpers": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/call-bind-apply-helpers/-/call-bind-apply-helpers-1.0.2.tgz",
++      "integrity": "sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0",
++        "function-bind": "^1.1.2"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/call-bound": {
++      "version": "1.0.4",
++      "resolved": "https://registry.npmjs.org/call-bound/-/call-bound-1.0.4.tgz",
++      "integrity": "sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bind-apply-helpers": "^1.0.2",
++        "get-intrinsic": "^1.3.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
+     "node_modules/chai": {
+       "version": "5.3.3",
+       "resolved": "https://registry.npmjs.org/chai/-/chai-5.3.3.tgz",
+@@ -1202,6 +1311,46 @@
+         "node": ">= 16"
+       }
+     },
++    "node_modules/content-disposition": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/content-disposition/-/content-disposition-1.1.0.tgz",
++      "integrity": "sha512-5jRCH9Z/+DRP7rkvY83B+yGIGX96OYdJmzngqnw2SBSxqCFPd0w2km3s5iawpGX8krnwSGmF0FW5Nhr0Hfai3g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/content-type": {
++      "version": "1.0.5",
++      "resolved": "https://registry.npmjs.org/content-type/-/content-type-1.0.5.tgz",
++      "integrity": "sha512-nTjqfcBFEipKdXCv4YDQWCfmcLZKm81ldF0pAopTvyrFGVbcR6P/VAAd5G7N+0tTr8QqiU0tFadD6FK4NtJwOA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/cookie": {
++      "version": "0.7.2",
++      "resolved": "https://registry.npmjs.org/cookie/-/cookie-0.7.2.tgz",
++      "integrity": "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/cookie-signature": {
++      "version": "1.2.2",
++      "resolved": "https://registry.npmjs.org/cookie-signature/-/cookie-signature-1.2.2.tgz",
++      "integrity": "sha512-D76uU73ulSXrD1UXF4KE2TMxVVwhsnCgfAyTg9k8P6KGZjlXKrOLe4dJQKI3Bxi5wjesZoFXJWElNWBjPZMbhg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=6.6.0"
++      }
++    },
+     "node_modules/csstype": {
+       "version": "3.2.3",
+       "resolved": "https://registry.npmjs.org/csstype/-/csstype-3.2.3.tgz",
+@@ -1212,7 +1361,6 @@
+       "version": "4.4.3",
+       "resolved": "https://registry.npmjs.org/debug/-/debug-4.4.3.tgz",
+       "integrity": "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==",
+-      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "ms": "^2.1.3"
+@@ -1236,6 +1384,29 @@
+         "node": ">=6"
+       }
+     },
++    "node_modules/depd": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/depd/-/depd-2.0.0.tgz",
++      "integrity": "sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/dunder-proto": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/dunder-proto/-/dunder-proto-1.0.1.tgz",
++      "integrity": "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bind-apply-helpers": "^1.0.1",
++        "es-errors": "^1.3.0",
++        "gopd": "^1.2.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
+     "node_modules/echarts": {
+       "version": "6.1.0",
+       "resolved": "https://registry.npmjs.org/echarts/-/echarts-6.1.0.tgz",
+@@ -1246,6 +1417,21 @@
+         "zrender": "6.1.0"
+       }
+     },
++    "node_modules/ee-first": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/ee-first/-/ee-first-1.1.1.tgz",
++      "integrity": "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==",
++      "license": "MIT"
++    },
++    "node_modules/encodeurl": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/encodeurl/-/encodeurl-2.0.0.tgz",
++      "integrity": "sha512-Q0n9HRi4m6JuGIV1eFlmvJB7ZEVxu93IrMyiMsGC0lrMJMWzRgx6WGquyfQgZVb31vhGgXnfmPNNXmxnOkRBrg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
+     "node_modules/entities": {
+       "version": "7.0.1",
+       "resolved": "https://registry.npmjs.org/entities/-/entities-7.0.1.tgz",
+@@ -1258,6 +1444,24 @@
+         "url": "https://github.com/fb55/entities?sponsor=1"
+       }
+     },
++    "node_modules/es-define-property": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/es-define-property/-/es-define-property-1.0.1.tgz",
++      "integrity": "sha512-e3nRfgfUZ4rNGL232gUgX06QNyyez04KdjFrF+LTRoOXmrOgFKDg4BCdsjW8EnT69eqdYGmRpJwiPVYNrCaW3g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/es-errors": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmjs.org/es-errors/-/es-errors-1.3.0.tgz",
++      "integrity": "sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
+     "node_modules/es-module-lexer": {
+       "version": "1.7.0",
+       "resolved": "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-1.7.0.tgz",
+@@ -1265,6 +1469,18 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/es-object-atoms": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/es-object-atoms/-/es-object-atoms-1.1.2.tgz",
++      "integrity": "sha512-HWcBoN6NileqtSydK2FqHbS/LoDd2pqrnQHLyJzBj4kOp/ky2MWMN694xOfkK8/SnUsW2DH7EfyVlydKCsm1Zw==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
+     "node_modules/esbuild": {
+       "version": "0.28.2",
+       "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.28.2.tgz",
+@@ -1307,6 +1523,12 @@
+         "@esbuild/win32-x64": "0.28.2"
+       }
+     },
++    "node_modules/escape-html": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/escape-html/-/escape-html-1.0.3.tgz",
++      "integrity": "sha512-NiSupZ4OeuGwr68lGIeym/ksIZMJodUGOSCZ/FSnTxcrekbvqrgdUxlJOMpijaKZVjAJrWrGs/6Jy8OMuyj9ow==",
++      "license": "MIT"
++    },
+     "node_modules/estree-walker": {
+       "version": "3.0.3",
+       "resolved": "https://registry.npmjs.org/estree-walker/-/estree-walker-3.0.3.tgz",
+@@ -1317,6 +1539,15 @@
+         "@types/estree": "^1.0.0"
+       }
+     },
++    "node_modules/etag": {
++      "version": "1.8.1",
++      "resolved": "https://registry.npmjs.org/etag/-/etag-1.8.1.tgz",
++      "integrity": "sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
+     "node_modules/expect-type": {
+       "version": "1.4.0",
+       "resolved": "https://registry.npmjs.org/expect-type/-/expect-type-1.4.0.tgz",
+@@ -1327,6 +1558,49 @@
+         "node": ">=12.0.0"
+       }
+     },
++    "node_modules/express": {
++      "version": "5.2.1",
++      "resolved": "https://registry.npmjs.org/express/-/express-5.2.1.tgz",
++      "integrity": "sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw==",
++      "license": "MIT",
++      "dependencies": {
++        "accepts": "^2.0.0",
++        "body-parser": "^2.2.1",
++        "content-disposition": "^1.0.0",
++        "content-type": "^1.0.5",
++        "cookie": "^0.7.1",
++        "cookie-signature": "^1.2.1",
++        "debug": "^4.4.0",
++        "depd": "^2.0.0",
++        "encodeurl": "^2.0.0",
++        "escape-html": "^1.0.3",
++        "etag": "^1.8.1",
++        "finalhandler": "^2.1.0",
++        "fresh": "^2.0.0",
++        "http-errors": "^2.0.0",
++        "merge-descriptors": "^2.0.0",
++        "mime-types": "^3.0.0",
++        "on-finished": "^2.4.1",
++        "once": "^1.4.0",
++        "parseurl": "^1.3.3",
++        "proxy-addr": "^2.0.7",
++        "qs": "^6.14.0",
++        "range-parser": "^1.2.1",
++        "router": "^2.2.0",
++        "send": "^1.1.0",
++        "serve-static": "^2.2.0",
++        "statuses": "^2.0.1",
++        "type-is": "^2.0.1",
++        "vary": "^1.1.2"
++      },
++      "engines": {
++        "node": ">= 18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
+     "node_modules/fdir": {
+       "version": "6.5.0",
+       "resolved": "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz",
+@@ -1345,6 +1619,45 @@
+         }
+       }
+     },
++    "node_modules/finalhandler": {
++      "version": "2.1.1",
++      "resolved": "https://registry.npmjs.org/finalhandler/-/finalhandler-2.1.1.tgz",
++      "integrity": "sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "^4.4.0",
++        "encodeurl": "^2.0.0",
++        "escape-html": "^1.0.3",
++        "on-finished": "^2.4.1",
++        "parseurl": "^1.3.3",
++        "statuses": "^2.0.1"
++      },
++      "engines": {
++        "node": ">= 18.0.0"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/forwarded": {
++      "version": "0.2.0",
++      "resolved": "https://registry.npmjs.org/forwarded/-/forwarded-0.2.0.tgz",
++      "integrity": "sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/fresh": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/fresh/-/fresh-2.0.0.tgz",
++      "integrity": "sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
+     "node_modules/fsevents": {
+       "version": "2.3.3",
+       "resolved": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.3.tgz",
+@@ -1360,6 +1673,160 @@
+         "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
+       }
+     },
++    "node_modules/function-bind": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/function-bind/-/function-bind-1.1.2.tgz",
++      "integrity": "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==",
++      "license": "MIT",
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/generate-function": {
++      "version": "2.3.1",
++      "resolved": "https://registry.npmjs.org/generate-function/-/generate-function-2.3.1.tgz",
++      "integrity": "sha512-eeB5GfMNeevm/GRYq20ShmsaGcmI81kIX2K9XQx5miC8KdHaC6Jm0qQ8ZNeGOi7wYB8OsdxKs+Y2oVuTFuVwKQ==",
++      "license": "MIT",
++      "dependencies": {
++        "is-property": "^1.0.2"
++      }
++    },
++    "node_modules/get-intrinsic": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmjs.org/get-intrinsic/-/get-intrinsic-1.3.0.tgz",
++      "integrity": "sha512-9fSjSaos/fRIVIp+xSJlE6lfwhES7LNtKaCBIamHsjr2na1BiABJPo0mOjjz8GJDURarmCPGqaiVg5mfjb98CQ==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bind-apply-helpers": "^1.0.2",
++        "es-define-property": "^1.0.1",
++        "es-errors": "^1.3.0",
++        "es-object-atoms": "^1.1.1",
++        "function-bind": "^1.1.2",
++        "get-proto": "^1.0.1",
++        "gopd": "^1.2.0",
++        "has-symbols": "^1.1.0",
++        "hasown": "^2.0.2",
++        "math-intrinsics": "^1.1.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/get-proto": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/get-proto/-/get-proto-1.0.1.tgz",
++      "integrity": "sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==",
++      "license": "MIT",
++      "dependencies": {
++        "dunder-proto": "^1.0.1",
++        "es-object-atoms": "^1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/gopd": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/gopd/-/gopd-1.2.0.tgz",
++      "integrity": "sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/has-symbols": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/has-symbols/-/has-symbols-1.1.0.tgz",
++      "integrity": "sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/hasown": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/hasown/-/hasown-2.0.4.tgz",
++      "integrity": "sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==",
++      "license": "MIT",
++      "dependencies": {
++        "function-bind": "^1.1.2"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/http-errors": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/http-errors/-/http-errors-2.0.1.tgz",
++      "integrity": "sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==",
++      "license": "MIT",
++      "dependencies": {
++        "depd": "~2.0.0",
++        "inherits": "~2.0.4",
++        "setprototypeof": "~1.2.0",
++        "statuses": "~2.0.2",
++        "toidentifier": "~1.0.1"
++      },
++      "engines": {
++        "node": ">= 0.8"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/iconv-lite": {
++      "version": "0.7.3",
++      "resolved": "https://registry.npmjs.org/iconv-lite/-/iconv-lite-0.7.3.tgz",
++      "integrity": "sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==",
++      "license": "MIT",
++      "dependencies": {
++        "safer-buffer": ">= 2.1.2 < 3.0.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/inherits": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz",
++      "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==",
++      "license": "ISC"
++    },
++    "node_modules/ipaddr.js": {
++      "version": "1.9.1",
++      "resolved": "https://registry.npmjs.org/ipaddr.js/-/ipaddr.js-1.9.1.tgz",
++      "integrity": "sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.10"
++      }
++    },
++    "node_modules/is-promise": {
++      "version": "4.0.0",
++      "resolved": "https://registry.npmjs.org/is-promise/-/is-promise-4.0.0.tgz",
++      "integrity": "sha512-hvpoI6korhJMnej285dSg6nu1+e6uxs7zG3BYAm5byqDsgJNWwxzM6z6iZiAgQR4TJ30JmBTOwqZUw3WlyH3AQ==",
++      "license": "MIT"
++    },
++    "node_modules/is-property": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/is-property/-/is-property-1.0.2.tgz",
++      "integrity": "sha512-Ks/IoX00TtClbGQr4TWXemAnktAQvYB7HzcCxDGqEZU6oCmb2INHuOoKxbtR+HFkmYWBKv/dOZtGRiAjDhj92g==",
++      "license": "MIT"
++    },
+     "node_modules/js-tokens": {
+       "version": "9.0.1",
+       "resolved": "https://registry.npmjs.org/js-tokens/-/js-tokens-9.0.1.tgz",
+@@ -1367,6 +1834,12 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/long": {
++      "version": "5.3.2",
++      "resolved": "https://registry.npmjs.org/long/-/long-5.3.2.tgz",
++      "integrity": "sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==",
++      "license": "Apache-2.0"
++    },
+     "node_modules/loupe": {
+       "version": "3.2.1",
+       "resolved": "https://registry.npmjs.org/loupe/-/loupe-3.2.1.tgz",
+@@ -1374,6 +1847,21 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/lru.min": {
++      "version": "1.1.5",
++      "resolved": "https://registry.npmjs.org/lru.min/-/lru.min-1.1.5.tgz",
++      "integrity": "sha512-5J9ysMYUpYIg9RF2vJpy9SinEmSviFSe0GyPpCQ4L5QSkLAgeLXlTAOu2ZwWUU5m+0SBl6gUU1R1ZQB3aKypfA==",
++      "license": "MIT",
++      "engines": {
++        "bun": ">=1.0.0",
++        "deno": ">=1.30.0",
++        "node": ">=8.0.0"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/sponsors/wellwelwel"
++      }
++    },
+     "node_modules/magic-string": {
+       "version": "0.30.21",
+       "resolved": "https://registry.npmjs.org/magic-string/-/magic-string-0.30.21.tgz",
+@@ -1383,13 +1871,104 @@
+         "@jridgewell/sourcemap-codec": "^1.5.5"
+       }
+     },
++    "node_modules/math-intrinsics": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/math-intrinsics/-/math-intrinsics-1.1.0.tgz",
++      "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/media-typer": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/media-typer/-/media-typer-1.1.1.tgz",
++      "integrity": "sha512-yz3xRaG20c6/BOzvYoDaGtPmGscs7YivItZEEqe6GbwNfHuxu9YNmvnEkMzKldAGY4/80pRcQRZSEnhquk9XuQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/merge-descriptors": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/merge-descriptors/-/merge-descriptors-2.0.0.tgz",
++      "integrity": "sha512-Snk314V5ayFLhp3fkUREub6WtjBfPdCPY1Ln8/8munuLuiYhsABgBVWsozAG+MWMbVEvcdcpbi9R7ww22l9Q3g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/sindresorhus"
++      }
++    },
++    "node_modules/mime-db": {
++      "version": "1.54.0",
++      "resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.54.0.tgz",
++      "integrity": "sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/mime-types": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmjs.org/mime-types/-/mime-types-3.0.2.tgz",
++      "integrity": "sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==",
++      "license": "MIT",
++      "dependencies": {
++        "mime-db": "^1.54.0"
++      },
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
+     "node_modules/ms": {
+       "version": "2.1.3",
+       "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
+       "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==",
+-      "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/mysql2": {
++      "version": "3.24.3",
++      "resolved": "https://registry.npmjs.org/mysql2/-/mysql2-3.24.3.tgz",
++      "integrity": "sha512-OKfWHkMAg9v06neq8FmSyhbxPQKABN9PAW5G9/bDTXzJBO5xXtkKL0V27vju7HQWk9UD4Od5BZsvCtBTB1CPEw==",
++      "license": "MIT",
++      "dependencies": {
++        "aws-ssl-profiles": "^1.1.2",
++        "generate-function": "^2.3.1",
++        "iconv-lite": "^0.7.3",
++        "long": "^5.3.2",
++        "lru.min": "^1.1.4",
++        "named-placeholders": "^1.1.6",
++        "sql-escaper": "^1.5.1"
++      },
++      "engines": {
++        "node": ">= 8.0"
++      },
++      "peerDependencies": {
++        "@types/node": ">= 8"
++      }
++    },
++    "node_modules/named-placeholders": {
++      "version": "1.1.6",
++      "resolved": "https://registry.npmjs.org/named-placeholders/-/named-placeholders-1.1.6.tgz",
++      "integrity": "sha512-Tz09sEL2EEuv5fFowm419c1+a/jSMiBjI9gHxVLrVdbUkkNUUfjsVYs9pVZu5oCon/kmRh9TfLEObFtkVxmY0w==",
++      "license": "MIT",
++      "dependencies": {
++        "lru.min": "^1.1.0"
++      },
++      "engines": {
++        "node": ">=8.0.0"
++      }
++    },
+     "node_modules/nanoid": {
+       "version": "3.3.18",
+       "resolved": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.18.tgz",
+@@ -1408,6 +1987,87 @@
+         "node": "^10 || ^12 || ^13.7 || ^14 || >=15.0.1"
+       }
+     },
++    "node_modules/negotiator": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/negotiator/-/negotiator-1.1.0.tgz",
++      "integrity": "sha512-NMPBRMJgiQHjbd8phG3Vebdx4kZ1H121rbl5IkMqeOsahptB9BKo/d7oJ3zTXqTgagn2bWlNSXkh0QUGM31RYg==",
++      "license": "MIT",
++      "dependencies": {
++        "content-type": "^2.1.0"
++      },
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/negotiator/node_modules/content-type": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/content-type/-/content-type-2.1.0.tgz",
++      "integrity": "sha512-mj7UPXE0jaqaOsukNZRUEfEi2AcL7C/vwmwcHV0O97eO1E1pxBZuyjlZrx5seTaNBg1U6+o35wpa35Qfcc+7ag==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/object-inspect": {
++      "version": "1.13.4",
++      "resolved": "https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz",
++      "integrity": "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/on-finished": {
++      "version": "2.4.1",
++      "resolved": "https://registry.npmjs.org/on-finished/-/on-finished-2.4.1.tgz",
++      "integrity": "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==",
++      "license": "MIT",
++      "dependencies": {
++        "ee-first": "1.1.1"
++      },
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/once": {
++      "version": "1.4.0",
++      "resolved": "https://registry.npmjs.org/once/-/once-1.4.0.tgz",
++      "integrity": "sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==",
++      "license": "ISC",
++      "dependencies": {
++        "wrappy": "1"
++      }
++    },
++    "node_modules/parseurl": {
++      "version": "1.3.3",
++      "resolved": "https://registry.npmjs.org/parseurl/-/parseurl-1.3.3.tgz",
++      "integrity": "sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/path-to-regexp": {
++      "version": "8.4.2",
++      "resolved": "https://registry.npmjs.org/path-to-regexp/-/path-to-regexp-8.4.2.tgz",
++      "integrity": "sha512-qRcuIdP69NPm4qbACK+aDogI5CBDMi1jKe0ry5rSQJz8JVLsC7jV8XpiJjGRLLol3N+R5ihGYcrPLTno6pAdBA==",
++      "license": "MIT",
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
+     "node_modules/pathe": {
+       "version": "2.0.3",
+       "resolved": "https://registry.npmjs.org/pathe/-/pathe-2.0.3.tgz",
+@@ -1473,6 +2133,63 @@
+         "node": "^10 || ^12 || >=14"
+       }
+     },
++    "node_modules/proxy-addr": {
++      "version": "2.0.7",
++      "resolved": "https://registry.npmjs.org/proxy-addr/-/proxy-addr-2.0.7.tgz",
++      "integrity": "sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==",
++      "license": "MIT",
++      "dependencies": {
++        "forwarded": "0.2.0",
++        "ipaddr.js": "1.9.1"
++      },
++      "engines": {
++        "node": ">= 0.10"
++      }
++    },
++    "node_modules/qs": {
++      "version": "6.16.0",
++      "resolved": "https://registry.npmjs.org/qs/-/qs-6.16.0.tgz",
++      "integrity": "sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "es-define-property": "^1.0.1",
++        "side-channel": "^1.1.1"
++      },
++      "engines": {
++        "node": ">=0.6"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/range-parser": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmjs.org/range-parser/-/range-parser-1.3.0.tgz",
++      "integrity": "sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/raw-body": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmjs.org/raw-body/-/raw-body-3.0.2.tgz",
++      "integrity": "sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==",
++      "license": "MIT",
++      "dependencies": {
++        "bytes": "~3.1.2",
++        "http-errors": "~2.0.1",
++        "iconv-lite": "~0.7.0",
++        "unpipe": "~1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.10"
++      }
++    },
+     "node_modules/rollup": {
+       "version": "4.63.1",
+       "resolved": "https://registry.npmjs.org/rollup/-/rollup-4.63.1.tgz",
+@@ -1519,6 +2236,151 @@
+         "fsevents": "~2.3.2"
+       }
+     },
++    "node_modules/router": {
++      "version": "2.2.0",
++      "resolved": "https://registry.npmjs.org/router/-/router-2.2.0.tgz",
++      "integrity": "sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "^4.4.0",
++        "depd": "^2.0.0",
++        "is-promise": "^4.0.0",
++        "parseurl": "^1.3.3",
++        "path-to-regexp": "^8.0.0"
++      },
++      "engines": {
++        "node": ">= 18"
++      }
++    },
++    "node_modules/safer-buffer": {
++      "version": "2.1.2",
++      "resolved": "https://registry.npmjs.org/safer-buffer/-/safer-buffer-2.1.2.tgz",
++      "integrity": "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==",
++      "license": "MIT"
++    },
++    "node_modules/send": {
++      "version": "1.2.1",
++      "resolved": "https://registry.npmjs.org/send/-/send-1.2.1.tgz",
++      "integrity": "sha512-1gnZf7DFcoIcajTjTwjwuDjzuz4PPcY2StKPlsGAQ1+YH20IRVrBaXSWmdjowTJ6u8Rc01PoYOGHXfP1mYcZNQ==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "^4.4.3",
++        "encodeurl": "^2.0.0",
++        "escape-html": "^1.0.3",
++        "etag": "^1.8.1",
++        "fresh": "^2.0.0",
++        "http-errors": "^2.0.1",
++        "mime-types": "^3.0.2",
++        "ms": "^2.1.3",
++        "on-finished": "^2.4.1",
++        "range-parser": "^1.2.1",
++        "statuses": "^2.0.2"
++      },
++      "engines": {
++        "node": ">= 18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/serve-static": {
++      "version": "2.2.1",
++      "resolved": "https://registry.npmjs.org/serve-static/-/serve-static-2.2.1.tgz",
++      "integrity": "sha512-xRXBn0pPqQTVQiC8wyQrKs2MOlX24zQ0POGaj0kultvoOCstBQM5yvOhAVSUwOMjQtTvsPWoNCHfPGwaaQJhTw==",
++      "license": "MIT",
++      "dependencies": {
++        "encodeurl": "^2.0.0",
++        "escape-html": "^1.0.3",
++        "parseurl": "^1.3.3",
++        "send": "^1.2.0"
++      },
++      "engines": {
++        "node": ">= 18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/setprototypeof": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/setprototypeof/-/setprototypeof-1.2.0.tgz",
++      "integrity": "sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==",
++      "license": "ISC"
++    },
++    "node_modules/side-channel": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/side-channel/-/side-channel-1.1.1.tgz",
++      "integrity": "sha512-6x6dK6zJdpTzF4sQeNYxwtvBzf6Eg4GtlesS94HOvTudUeyK2WXAaIfmDgsyslYrRBeFIlsi54AYsFGUuhmvrQ==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0",
++        "object-inspect": "^1.13.4",
++        "side-channel-list": "^1.0.1",
++        "side-channel-map": "^1.0.1",
++        "side-channel-weakmap": "^1.0.2"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/side-channel-list": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/side-channel-list/-/side-channel-list-1.0.1.tgz",
++      "integrity": "sha512-mjn/0bi/oUURjc5Xl7IaWi/OJJJumuoJFQJfDDyO46+hBWsfaVM65TBHq2eoZBhzl9EchxOijpkbRC8SVBQU0w==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0",
++        "object-inspect": "^1.13.4"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/side-channel-map": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/side-channel-map/-/side-channel-map-1.0.1.tgz",
++      "integrity": "sha512-VCjCNfgMsby3tTdo02nbjtM/ewra6jPHmpThenkTYh8pG9ucZ/1P8So4u4FGBek/BjpOVsDCMoLA/iuBKIFXRA==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bound": "^1.0.2",
++        "es-errors": "^1.3.0",
++        "get-intrinsic": "^1.2.5",
++        "object-inspect": "^1.13.3"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/side-channel-weakmap": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/side-channel-weakmap/-/side-channel-weakmap-1.0.2.tgz",
++      "integrity": "sha512-WPS/HvHQTYnHisLo9McqBHOJk2FkHO/tlpvldyrnem4aeQp4hai3gythswg6p01oSoTl58rcpiFAjF2br2Ak2A==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bound": "^1.0.2",
++        "es-errors": "^1.3.0",
++        "get-intrinsic": "^1.2.5",
++        "object-inspect": "^1.13.3",
++        "side-channel-map": "^1.0.1"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
+     "node_modules/siginfo": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/siginfo/-/siginfo-2.0.0.tgz",
+@@ -1535,6 +2397,21 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/sql-escaper": {
++      "version": "1.5.1",
++      "resolved": "https://registry.npmjs.org/sql-escaper/-/sql-escaper-1.5.1.tgz",
++      "integrity": "sha512-4toX5E1fQbBrpfXidaHnF0669nkAdETeIPTs2SUjxxD7RRIs9ICG4gtpmfc68JCEKehsdwLFqBu9VlQqZ1P1gg==",
++      "license": "MIT",
++      "engines": {
++        "bun": ">=1.0.0",
++        "deno": ">=2.0.0",
++        "node": ">=12.0.0"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/mysqljs/sql-escaper?sponsor=1"
++      }
++    },
+     "node_modules/stackback": {
+       "version": "0.0.2",
+       "resolved": "https://registry.npmjs.org/stackback/-/stackback-0.0.2.tgz",
+@@ -1542,6 +2419,15 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/statuses": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/statuses/-/statuses-2.0.2.tgz",
++      "integrity": "sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
+     "node_modules/std-env": {
+       "version": "3.10.0",
+       "resolved": "https://registry.npmjs.org/std-env/-/std-env-3.10.0.tgz",
+@@ -1623,12 +2509,76 @@
+         "node": ">=14.0.0"
+       }
+     },
++    "node_modules/toidentifier": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/toidentifier/-/toidentifier-1.0.1.tgz",
++      "integrity": "sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.6"
++      }
++    },
+     "node_modules/tslib": {
+       "version": "2.3.0",
+       "resolved": "https://registry.npmjs.org/tslib/-/tslib-2.3.0.tgz",
+       "integrity": "sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg==",
+       "license": "0BSD"
+     },
++    "node_modules/type-is": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/type-is/-/type-is-2.1.0.tgz",
++      "integrity": "sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==",
++      "license": "MIT",
++      "dependencies": {
++        "content-type": "^2.0.0",
++        "media-typer": "^1.1.0",
++        "mime-types": "^3.0.0"
++      },
++      "engines": {
++        "node": ">= 18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/type-is/node_modules/content-type": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/content-type/-/content-type-2.1.0.tgz",
++      "integrity": "sha512-mj7UPXE0jaqaOsukNZRUEfEi2AcL7C/vwmwcHV0O97eO1E1pxBZuyjlZrx5seTaNBg1U6+o35wpa35Qfcc+7ag==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/undici-types": {
++      "version": "8.3.0",
++      "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-8.3.0.tgz",
++      "integrity": "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==",
++      "license": "MIT"
++    },
++    "node_modules/unpipe": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/unpipe/-/unpipe-1.0.0.tgz",
++      "integrity": "sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/vary": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/vary/-/vary-1.1.2.tgz",
++      "integrity": "sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
+     "node_modules/vite": {
+       "version": "7.3.6",
+       "resolved": "https://registry.npmjs.org/vite/-/vite-7.3.6.tgz",
+@@ -1840,6 +2790,12 @@
+         "node": ">=8"
+       }
+     },
++    "node_modules/wrappy": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/wrappy/-/wrappy-1.0.2.tgz",
++      "integrity": "sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==",
++      "license": "ISC"
++    },
+     "node_modules/zrender": {
+       "version": "6.1.0",
+       "resolved": "https://registry.npmjs.org/zrender/-/zrender-6.1.0.tgz",
+diff --git a/package.json b/package.json
+index 2826e48..1268075 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "ffd-p3-community",
+-  "version": "1.1.0",
++  "version": "2.0.0",
+   "private": true,
+   "type": "module",
+   "engines": {
+@@ -8,6 +8,13 @@
+   },
+   "scripts": {
+     "dev": "vite",
++    "dev:api": "node --env-file-if-exists=.env --watch server/index.js",
++    "start:api": "node --env-file-if-exists=.env server/index.js",
++    "db:migrate": "node database/migrate.mjs",
++    "db:mysql:migrate": "node database/mysql/migrate.mjs",
++    "db:mysql:verify": "node database/mysql/verify.mjs",
++    "db:mysql:backup": "node database/mysql/backup.mjs",
++    "db:mysql:restore": "node database/mysql/restore.mjs",
+     "check": "node scripts/check-project.mjs",
+     "test:unit": "node --test tests/*.test.mjs",
+     "test:component": "vitest run",
+@@ -16,6 +23,8 @@
+   },
+   "dependencies": {
+     "echarts": "^6.1.0",
++    "express": "^5.2.1",
++    "mysql2": "^3.24.3",
+     "vue": "^3.5.0"
+   },
+   "devDependencies": {
+diff --git a/scripts/check-project.mjs b/scripts/check-project.mjs
+index 073ae20..8826b8f 100644
+--- a/scripts/check-project.mjs
++++ b/scripts/check-project.mjs
+@@ -6,6 +6,7 @@ const files = {
+   card: read('src/components/MemberCard.vue'),
+   filters: read('src/components/MemberFilters.vue'),
+   chart: read('src/components/SkillChart.vue'),
++  collaboration: read('src/components/CollaborationPanel.vue'),
+   domain: read('src/domain/member.js'),
+   data: read('src/data/members.js'),
+   css: read('src/styles.css'),
+@@ -13,10 +14,17 @@ const files = {
+   privacy: read('docs/privacy-and-consent.md'),
+   ci: read('.github/workflows/ci.yml'),
+   netlify: read('netlify.toml'),
++  server: read('server/app.js'),
++  workflow: read('server/workflow.js'),
++  csv: read('server/csv.js'),
++  sqlite: read('server/sqliteDatabase.js'),
++  mysql: read('server/mysqlDatabase.js'),
++  mysqlMigration: read('database/mysql/migrations/001_initial.sql'),
++  env: read('.env.example'),
+ }
+ 
+ const checks = [
+-  ['版本入口标记为 P3 v1.1', /P3 · v1\.1/.test(files.app)],
++  ['版本入口标记为 P3 v2.0', /P3 · v2\.0/.test(files.app)],
+   ['至少 8 条成员教学数据', (files.data.match(/id: 'm\d+'/g) ?? []).length >= 8],
+   ['资料公开前检查授权', /profileConsent/.test(files.domain)],
+   ['公开对象使用字段白名单', /publicKeys/.test(files.domain)],
+@@ -35,6 +43,17 @@ const checks = [
+   ['ECharts 正确初始化、响应尺寸和销毁', /echarts\.init/.test(files.chart) && /chart\?\.resize/.test(files.chart) && /chart\?\.dispose/.test(files.chart)],
+   ['图表具有单位、tooltip 和文本摘要', /人数/.test(files.chart) && /tooltip/.test(files.chart) && /文本摘要/.test(files.chart)],
+   ['筛选结果用 aria-live 播报', /aria-live="polite"/.test(files.filters)],
++  ['服务器提供登录、提交和审核接口', /auth\/login/.test(files.server) && /review\/members/.test(files.server)],
++  ['服务器端按角色返回 401 与 403', /AUTH_REQUIRED/.test(files.server) && /FORBIDDEN/.test(files.server)],
++  ['审核状态转换由状态机约束', /allowedTransitions/.test(files.workflow) && /INVALID_TRANSITION/.test(files.workflow)],
++  ['CSV 支持预览与事务导入接口', /import\/preview/.test(files.server) && /importBatch/.test(files.server)],
++  ['CSV 公式注入防护与脱敏导出', /safeSpreadsheetCell/.test(files.csv) && /maskEmail/.test(files.csv)],
++  ['SQLite 开启外键、WAL 和事务', /foreign_keys=ON/.test(files.sqlite) && /journal_mode=WAL/.test(files.sqlite) && /BEGIN IMMEDIATE/.test(files.sqlite)],
++  ['MySQL 使用连接池和事务', /createPool/.test(files.mysql) && /beginTransaction/.test(files.mysql) && /rollback/.test(files.mysql)],
++  ['MySQL 表使用 InnoDB、utf8mb4 和外键', /ENGINE=InnoDB/.test(files.mysqlMigration) && /utf8mb4/.test(files.mysqlMigration) && /FOREIGN KEY/.test(files.mysqlMigration)],
++  ['协同前端包含登录、提交、审核和 CSV', /登录协同工作台/.test(files.collaboration) && /提交我的公开资料/.test(files.collaboration) && /CSV 预览/.test(files.collaboration)],
++  ['学生静态托管配置有效，动态API由个人Ubuntu同源代理', !files.netlify.includes('47.120.') && files.netlify.includes('/index.html')],
++  ['环境模板不包含真实凭据', /change-me/.test(files.env) && /SESSION_SECRET/.test(files.env)],
+ ]
+ 
+ const failed = checks.filter(([, passed]) => !passed)
+@@ -43,4 +62,4 @@ if (failed.length) {
+   process.exit(1)
+ }
+ 
+-console.log(`P3 v1.1 结构检查通过：${checks.length} 项规则全部满足。`)
++console.log(`P3 v2.0 结构检查通过：${checks.length} 项规则全部满足。`)
+diff --git a/server/app.js b/server/app.js
+new file mode 100644
+index 0000000..4bc5a2c
+--- /dev/null
++++ b/server/app.js
+@@ -0,0 +1,78 @@
++import crypto from 'node:crypto'
++import express from 'express'
++import { createAccessToken, readBearerToken, verifyAccessToken, verifyPassword } from './auth.js'
++import { exportMembersCsv, parseMemberCsv } from './csv.js'
++import { createMemoryRepository } from './memoryRepository.js'
++import { publicMember, toMemberRecord, validateMemberInput } from './memberInput.js'
++import { assertTransition } from './workflow.js'
++
++export function createApp({ repository = createMemoryRepository(), userRepository, tokenSecret = process.env.SESSION_SECRET || '', allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://127.0.0.1:5173', logger = console } = {}) {
++  const app = express()
++  app.disable('x-powered-by')
++  app.use(express.json({ limit: '250kb' }))
++  app.use((req, res, next) => {
++    const requestId = req.get('x-request-id') || crypto.randomUUID()
++    res.set('x-request-id', requestId)
++    res.set('access-control-allow-origin', allowedOrigin)
++    res.set('access-control-allow-headers', 'content-type,x-request-id,authorization')
++    res.set('access-control-allow-methods', 'GET,POST,PATCH,OPTIONS')
++    if (req.method === 'OPTIONS') return res.sendStatus(204)
++    const startedAt = Date.now()
++    res.on('finish', () => logger.info?.(JSON.stringify({ requestId, method: req.method, path: req.path, status: res.statusCode, durationMs: Date.now() - startedAt })))
++    next()
++  })
++
++  function requireRole(...roles) {
++    return (req, res, next) => {
++      const claims = verifyAccessToken(readBearerToken(req.get('authorization')), tokenSecret)
++      if (!claims) return res.status(401).json({ error: { code: 'AUTH_REQUIRED', message: 'login required' } })
++      if (!roles.includes(claims.role)) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'forbidden' } })
++      req.user = claims
++      next()
++    }
++  }
++
++  app.get('/health', (req, res) => res.json({ ok: true, service: 'p3-community-api' }))
++  app.post('/api/auth/login', async (req, res) => {
++    const username = String(req.body?.username ?? '').trim()
++    const password = String(req.body?.password ?? '')
++    const user = username && userRepository ? await userRepository.findByUsername(username) : null
++    if (!user || !verifyPassword(password, user.passwordSalt, user.passwordHash)) return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: 'invalid username or password' } })
++    res.json({ data: { token: createAccessToken(user, tokenSecret), user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role } } })
++  })
++
++  app.get('/api/members', async (req, res) => res.json({ data: (await repository.listPublic()).map(publicMember) }))
++  app.post('/api/members', requireRole('member', 'reviewer'), async (req, res) => {
++    const errors = validateMemberInput(req.body)
++    if (Object.keys(errors).length) return res.status(400).json({ error: { code: 'VALIDATION_ERROR', fields: errors } })
++    res.status(201).json({ data: await repository.create({ ...toMemberRecord(req.body, req.user.sub), status: 'submitted' }) })
++  })
++  app.get('/api/review/members', requireRole('reviewer'), async (req, res) => res.json({ data: await repository.listAll() }))
++  app.patch('/api/review/members/:id/status', requireRole('reviewer'), async (req, res) => {
++    const existing = await repository.find(req.params.id)
++    if (!existing) return res.status(404).json({ error: { code: 'MEMBER_NOT_FOUND' } })
++    assertTransition(existing.status, req.body?.status, req.user.role)
++    res.json({ data: await repository.transition(req.params.id, req.body.status, { reviewerId: req.user.sub, note: String(req.body?.note ?? '').slice(0, 300) }) })
++  })
++  app.post('/api/import/preview', requireRole('reviewer'), (req, res) => {
++    const result = parseMemberCsv(req.body?.csv)
++    if (result.errors.length) return res.status(400).json({ error: { code: 'CSV_VALIDATION_ERROR', rows: result.errors } })
++    res.json({ data: result })
++  })
++  app.post('/api/import', requireRole('reviewer'), async (req, res) => {
++    const result = parseMemberCsv(req.body?.csv)
++    if (result.errors.length) return res.status(400).json({ error: { code: 'CSV_VALIDATION_ERROR', rows: result.errors } })
++    try { res.status(201).json({ data: { imported: (await repository.importBatch(result.rows, req.user.sub)).length } }) }
++    catch (error) { if (error.code === 'DUPLICATE_EMAIL') return res.status(409).json({ error: { code: error.code } }); throw error }
++  })
++  app.get('/api/export', requireRole('reviewer'), async (req, res) => {
++    res.type('text/csv').attachment('p3-members.csv').send(`\uFEFF${exportMembersCsv(await repository.listAll())}`)
++  })
++  app.use((req, res) => res.status(404).json({ error: { code: 'ROUTE_NOT_FOUND' } }))
++  app.use((error, req, res, next) => {
++    logger.error?.(JSON.stringify({ requestId: res.get('x-request-id'), code: error.code, message: error.message }))
++    if (error instanceof SyntaxError) return res.status(400).json({ error: { code: 'INVALID_JSON', message: 'invalid JSON' } })
++    res.status(error.status || 500).json({ error: { code: error.code || 'INTERNAL_ERROR', message: error.status ? error.message : 'internal error' } })
++  })
++  return app
++}
+diff --git a/server/auth.js b/server/auth.js
+new file mode 100644
+index 0000000..0a063d2
+--- /dev/null
++++ b/server/auth.js
+@@ -0,0 +1,39 @@
++import crypto from 'node:crypto'
++
++const TOKEN_TTL_SECONDS = 8 * 60 * 60
++
++export function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
++  if (typeof password !== 'string' || password.length < 12) throw new Error('password must contain at least 12 characters')
++  return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') }
++}
++
++export function verifyPassword(password, salt, expectedHash) {
++  if (!password || !salt || !expectedHash) return false
++  const actual = crypto.scryptSync(password, salt, 64)
++  const expected = Buffer.from(expectedHash, 'hex')
++  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected)
++}
++
++export function createAccessToken(user, secret, now = Date.now()) {
++  if (!secret || secret.length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters')
++  const payload = Buffer.from(JSON.stringify({ sub: user.id, username: user.username, role: user.role, exp: Math.floor(now / 1000) + TOKEN_TTL_SECONDS })).toString('base64url')
++  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
++  return `${payload}.${signature}`
++}
++
++export function verifyAccessToken(token, secret, now = Date.now()) {
++  if (!token || !secret) return null
++  const [payload, signature, extra] = token.split('.')
++  if (!payload || !signature || extra) return null
++  const expected = crypto.createHmac('sha256', secret).update(payload).digest()
++  const actual = Buffer.from(signature, 'base64url')
++  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null
++  try {
++    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
++    return claims.exp > Math.floor(now / 1000) ? claims : null
++  } catch { return null }
++}
++
++export function readBearerToken(header = '') {
++  return /^Bearer\s+(.+)$/i.exec(header)?.[1] || ''
++}
+diff --git a/server/csv.js b/server/csv.js
+new file mode 100644
+index 0000000..5af199e
+--- /dev/null
++++ b/server/csv.js
+@@ -0,0 +1,66 @@
++import { normalizeList, toMemberRecord, validateMemberInput } from './memberInput.js'
++
++const requiredHeaders = ['name', 'role', 'email', 'skills']
++
++function parseLine(line) {
++  const cells = []
++  let value = ''
++  let quoted = false
++  for (let index = 0; index < line.length; index += 1) {
++    const char = line[index]
++    if (char === '"' && quoted && line[index + 1] === '"') { value += '"'; index += 1 }
++    else if (char === '"') quoted = !quoted
++    else if (char === ',' && !quoted) { cells.push(value); value = '' }
++    else value += char
++  }
++  if (quoted) throw new Error('unclosed quote')
++  cells.push(value)
++  return cells.map((cell) => cell.trim())
++}
++
++export function safeSpreadsheetCell(value) {
++  const text = String(value ?? '')
++  return /^[=+\-@]/.test(text.trimStart()) ? `'${text}` : text
++}
++
++export function parseMemberCsv(csv = '') {
++  const lines = String(csv).replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim())
++  if (lines.length < 2) return { rows: [], errors: [{ line: 1, message: 'header and at least one row are required' }] }
++  let headers
++  try { headers = parseLine(lines[0]).map((item) => item.toLowerCase()) } catch (error) { return { rows: [], errors: [{ line: 1, message: error.message }] } }
++  const missing = requiredHeaders.filter((header) => !headers.includes(header))
++  if (missing.length) return { rows: [], errors: [{ line: 1, message: `missing headers: ${missing.join(', ')}` }] }
++  const rows = []
++  const errors = []
++  const emails = new Set()
++  for (let index = 1; index < lines.length; index += 1) {
++    try {
++      const cells = parseLine(lines[index])
++      const raw = Object.fromEntries(headers.map((header, cellIndex) => [header, safeSpreadsheetCell(cells[cellIndex] ?? '')]))
++      raw.skills = normalizeList(raw.skills.replaceAll('|', ','))
++      raw.interests = normalizeList(String(raw.interests ?? '').replaceAll('|', ','))
++      const validation = validateMemberInput(raw)
++      if (emails.has(raw.email.toLowerCase())) validation.email = 'duplicate email in file'
++      emails.add(raw.email.toLowerCase())
++      if (Object.keys(validation).length) errors.push({ line: index + 1, fields: validation })
++      else rows.push(toMemberRecord(raw))
++    } catch (error) { errors.push({ line: index + 1, message: error.message }) }
++  }
++  return { rows, errors }
++}
++
++function quote(value) {
++  const safe = safeSpreadsheetCell(value)
++  return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe
++}
++
++function maskEmail(email = '') {
++  const [name, domain] = email.split('@')
++  return domain ? `${name.slice(0, 1)}***@${domain}` : ''
++}
++
++export function exportMembersCsv(records = []) {
++  const header = ['name', 'role', 'status', 'masked_email', 'skills']
++  const rows = records.map((item) => [item.name, item.role, item.status, maskEmail(item.email), (item.skills ?? []).join('|')])
++  return [header, ...rows].map((row) => row.map(quote).join(',')).join('\r\n')
++}
+diff --git a/server/index.js b/server/index.js
+new file mode 100644
+index 0000000..6e07825
+--- /dev/null
++++ b/server/index.js
+@@ -0,0 +1,19 @@
++import { createApp } from './app.js'
++import { createMysqlMemberRepository, migrateMysql, openMysqlPool, seedMysqlMembers, seedMysqlUsers } from './mysqlDatabase.js'
++import { createSqliteMemberRepository, migrateSqlite, openSqlite, seedSqliteMembers, seedSqliteUsers } from './sqliteDatabase.js'
++
++const port = Number(process.env.PORT) || 3020
++if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters')
++let repository
++let userRepository
++let closeDatabase
++
++if (process.env.DB_DRIVER === 'mysql') {
++  const pool = openMysqlPool(); await migrateMysql(pool); repository = createMysqlMemberRepository(pool); userRepository = await seedMysqlUsers(pool); await seedMysqlMembers(pool); closeDatabase = () => pool.end()
++} else {
++  const db = openSqlite(process.env.DATABASE_PATH || './var/p3-community.sqlite'); migrateSqlite(db); repository = createSqliteMemberRepository(db); userRepository = seedSqliteUsers(db); seedSqliteMembers(db); closeDatabase = () => db.close()
++}
++
++const server = createApp({ repository, userRepository }).listen(port, '0.0.0.0', () => console.log(`P3 API listening on http://127.0.0.1:${port}`))
++function shutdown(){server.close(async()=>{await closeDatabase();process.exit(0)})}
++process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown)
+diff --git a/server/memberInput.js b/server/memberInput.js
+new file mode 100644
+index 0000000..6a26e65
+--- /dev/null
++++ b/server/memberInput.js
+@@ -0,0 +1,40 @@
++const statuses = new Set(['draft', 'submitted', 'approved', 'rejected'])
++
++export function normalizeList(value) {
++  const values = Array.isArray(value) ? value : String(value ?? '').split(/[、,，]/)
++  return [...new Set(values.map((item) => String(item).trim()).filter(Boolean))]
++}
++
++export function validateMemberInput(input = {}) {
++  const errors = {}
++  const name = String(input.name ?? '').trim()
++  const role = String(input.role ?? '').trim()
++  const email = String(input.email ?? '').trim().toLowerCase()
++  if (name.length < 2 || name.length > 40) errors.name = 'name must contain 2-40 characters'
++  if (role.length < 2 || role.length > 60) errors.role = 'role must contain 2-60 characters'
++  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'valid email is required'
++  if (String(input.bio ?? '').trim().length > 300) errors.bio = 'bio must not exceed 300 characters'
++  if (normalizeList(input.skills).length > 10) errors.skills = 'skills must not exceed 10 items'
++  return errors
++}
++
++export function toMemberRecord(input = {}, ownerId = null) {
++  return {
++    name: String(input.name ?? '').trim(),
++    role: String(input.role ?? '').trim(),
++    cohort: String(input.cohort ?? '').trim(),
++    location: String(input.location ?? '').trim(),
++    bio: String(input.bio ?? '').trim(),
++    skills: normalizeList(input.skills),
++    interests: normalizeList(input.interests),
++    avatar: String(input.avatar ?? '').trim(),
++    email: String(input.email ?? '').trim().toLowerCase(),
++    status: statuses.has(input.status) ? input.status : 'submitted',
++    ownerId,
++  }
++}
++
++export function publicMember(record) {
++  const { email, ownerId, reviewNote, reviewedBy, ...safe } = record
++  return safe
++}
+diff --git a/server/memoryRepository.js b/server/memoryRepository.js
+new file mode 100644
+index 0000000..475cc7d
+--- /dev/null
++++ b/server/memoryRepository.js
+@@ -0,0 +1,23 @@
++export function createMemoryRepository(seed = []) {
++  let members = seed.map((item) => ({ ...item, skills: [...(item.skills ?? [])], interests: [...(item.interests ?? [])] }))
++  let nextId = Math.max(0, ...members.map((item) => Number(item.id) || 0)) + 1
++  return {
++    async listPublic() { return members.filter((item) => item.status === 'approved') },
++    async listAll() { return members.map((item) => ({ ...item })) },
++    async find(id) { return members.find((item) => String(item.id) === String(id)) ?? null },
++    async create(input) { const item = { ...input, id: nextId++, version: 1, reviewNote: '', reviewedBy: null }; members.push(item); return { ...item } },
++    async transition(id, nextStatus, { reviewerId, note = '' }) {
++      const item = members.find((record) => String(record.id) === String(id))
++      if (!item) return null
++      item.status = nextStatus; item.reviewedBy = reviewerId; item.reviewNote = note; item.version += 1
++      return { ...item }
++    },
++    async importBatch(rows, ownerId) {
++      const existing = new Set(members.map((item) => item.email))
++      if (rows.some((row) => existing.has(row.email))) { const error = new Error('email already exists'); error.code = 'DUPLICATE_EMAIL'; throw error }
++      const created = rows.map((row) => ({ ...row, id: nextId++, ownerId, status: 'submitted', version: 1, reviewNote: '', reviewedBy: null }))
++      members.push(...created)
++      return created
++    },
++  }
++}
+diff --git a/server/mysqlDatabase.js b/server/mysqlDatabase.js
+new file mode 100644
+index 0000000..5fea891
+--- /dev/null
++++ b/server/mysqlDatabase.js
+@@ -0,0 +1,38 @@
++import { readdir, readFile } from 'node:fs/promises'
++import { fileURLToPath } from 'node:url'
++import mysql from 'mysql2/promise'
++import { hashPassword } from './auth.js'
++import { createMysqlUserRepository } from './userRepository.js'
++import { seedMemberRecords } from './seedMembers.js'
++
++const migrationsDirectory = fileURLToPath(new URL('../database/mysql/migrations', import.meta.url))
++const map = (row) => row && ({ id: Number(row.id), name: row.name, role: row.role_title, cohort: row.cohort, location: row.location, bio: row.bio, skills: typeof row.skills_json === 'string' ? JSON.parse(row.skills_json) : row.skills_json, interests: typeof row.interests_json === 'string' ? JSON.parse(row.interests_json) : row.interests_json, avatar: row.avatar, email: row.email, status: row.status, ownerId: row.owner_id && Number(row.owner_id), reviewedBy: row.reviewed_by && Number(row.reviewed_by), reviewNote: row.review_note, version: row.version })
++const select = 'SELECT id,name,role_title,cohort,location,bio,skills_json,interests_json,avatar,email,status,owner_id,reviewed_by,review_note,version FROM members'
++
++export function mysqlConfig(env = process.env) {
++  for (const name of ['MYSQL_HOST','MYSQL_DATABASE','MYSQL_USER','MYSQL_PASSWORD']) if (!env[name]) throw new Error(`Missing environment variable: ${name}`)
++  return { host:env.MYSQL_HOST,port:Number(env.MYSQL_PORT)||3306,database:env.MYSQL_DATABASE,user:env.MYSQL_USER,password:env.MYSQL_PASSWORD,charset:'utf8mb4',connectionLimit:5,multipleStatements:true,timezone:'Z',dateStrings:true }
++}
++export function openMysqlPool(env = process.env) { return mysql.createPool(mysqlConfig(env)) }
++export async function migrateMysql(pool) {
++  await pool.query('CREATE TABLE IF NOT EXISTS schema_migrations(version VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB')
++  const [rows] = await pool.query('SELECT version FROM schema_migrations'); const applied = new Set(rows.map((row)=>row.version)); const files=(await readdir(migrationsDirectory)).filter((name)=>name.endsWith('.sql')).sort(); const completed=[]
++  for(const file of files) if(!applied.has(file)){const connection=await pool.getConnection();try{await connection.beginTransaction();await connection.query(await readFile(new URL(`../database/mysql/migrations/${file}`,import.meta.url),'utf8'));await connection.execute('INSERT INTO schema_migrations(version) VALUES (?)',[file]);await connection.commit();completed.push(file)}catch(error){await connection.rollback();throw error}finally{connection.release()}}
++  return completed
++}
++export function createMysqlMemberRepository(pool) {
++  return {
++    async listPublic(){const [rows]=await pool.query(`${select} WHERE status='approved' ORDER BY id`);return rows.map(map)},
++    async listAll(){const [rows]=await pool.query(`${select} ORDER BY id`);return rows.map(map)},
++    async find(id){const [rows]=await pool.execute(`${select} WHERE id=?`,[id]);return map(rows[0])??null},
++    async create(item, connection=pool){const [result]=await connection.execute('INSERT INTO members(name,role_title,cohort,location,bio,skills_json,interests_json,avatar,email,status,owner_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)',[item.name,item.role,item.cohort,item.location,item.bio,JSON.stringify(item.skills),JSON.stringify(item.interests),item.avatar,item.email,item.status,item.ownerId]);return this.find(result.insertId)},
++    async transition(id,status,{reviewerId,note}){await pool.execute('UPDATE members SET status=?,reviewed_by=?,review_note=?,version=version+1 WHERE id=?',[status,reviewerId,note,id]);return this.find(id)},
++    async importBatch(rows,ownerId){const connection=await pool.getConnection();try{await connection.beginTransaction();const created=[];for(const row of rows){const [result]=await connection.execute('INSERT INTO members(name,role_title,cohort,location,bio,skills_json,interests_json,avatar,email,status,owner_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)',[row.name,row.role,row.cohort,row.location,row.bio,JSON.stringify(row.skills),JSON.stringify(row.interests),row.avatar,row.email,'submitted',ownerId]);created.push({...row,id:Number(result.insertId),status:'submitted',ownerId})}await connection.commit();return created}catch(error){await connection.rollback();if(error.code==='ER_DUP_ENTRY')error.code='DUPLICATE_EMAIL';throw error}finally{connection.release()}},
++  }
++}
++export async function seedMysqlUsers(pool, env=process.env){const repo=createMysqlUserRepository(pool);for(const item of [{username:env.MEMBER_USERNAME,password:env.MEMBER_PASSWORD,displayName:'学生成员',role:'member'},{username:env.REVIEWER_USERNAME,password:env.REVIEWER_PASSWORD,displayName:'课程审核员',role:'reviewer'}])if(item.username&&item.password){const{salt,hash}=hashPassword(item.password);await repo.upsert({...item,passwordSalt:salt,passwordHash:hash})}return repo}
++export async function seedMysqlMembers(pool) {
++  for (const item of seedMemberRecords) await pool.execute(`INSERT IGNORE INTO members(name,role_title,cohort,location,bio,skills_json,interests_json,avatar,email,status,owner_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [item.name,item.role,item.cohort,item.location,item.bio,JSON.stringify(item.skills),JSON.stringify(item.interests),item.avatar,item.email,item.status,item.ownerId])
++  const [[row]] = await pool.query('SELECT COUNT(*) count FROM members')
++  return Number(row.count)
++}
+diff --git a/server/seedMembers.js b/server/seedMembers.js
+new file mode 100644
+index 0000000..3d5fe7e
+--- /dev/null
++++ b/server/seedMembers.js
+@@ -0,0 +1,15 @@
++import { members } from '../src/data/members.js'
++
++export const seedMemberRecords = members.map((member, index) => ({
++  name: member.name,
++  role: member.role,
++  cohort: member.cohort,
++  location: member.location,
++  bio: member.bio,
++  skills: member.skills,
++  interests: member.interests,
++  avatar: member.avatar,
++  email: `member${String(index + 1).padStart(2, '0')}@example.invalid`,
++  status: 'approved',
++  ownerId: null,
++}))
+diff --git a/server/sqliteDatabase.js b/server/sqliteDatabase.js
+new file mode 100644
+index 0000000..9a4dc78
+--- /dev/null
++++ b/server/sqliteDatabase.js
+@@ -0,0 +1,47 @@
++import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
++import { dirname, resolve } from 'node:path'
++import { DatabaseSync } from 'node:sqlite'
++import { fileURLToPath } from 'node:url'
++import { createSqliteUserRepository } from './userRepository.js'
++import { hashPassword } from './auth.js'
++import { seedMemberRecords } from './seedMembers.js'
++
++const migrationsDirectory = fileURLToPath(new URL('../database/migrations', import.meta.url))
++const map = (row) => row && ({ id: row.id, name: row.name, role: row.role_title, cohort: row.cohort, location: row.location, bio: row.bio, skills: JSON.parse(row.skills_json), interests: JSON.parse(row.interests_json), avatar: row.avatar, email: row.email, status: row.status, ownerId: row.owner_id, reviewedBy: row.reviewed_by, reviewNote: row.review_note, version: row.version })
++
++export function openSqlite(path = ':memory:') {
++  if (path !== ':memory:') mkdirSync(dirname(resolve(path)), { recursive: true })
++  const db = new DatabaseSync(path)
++  db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;')
++  return db
++}
++export function migrateSqlite(db) {
++  db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)')
++  const applied = new Set(db.prepare('SELECT version FROM schema_migrations').all().map((row) => row.version))
++  const files = existsSync(migrationsDirectory) ? readdirSync(migrationsDirectory).filter((name) => name.endsWith('.sql')).sort() : []
++  for (const file of files) if (!applied.has(file)) { db.exec('BEGIN IMMEDIATE'); try { db.exec(readFileSync(resolve(migrationsDirectory, file), 'utf8')); db.prepare('INSERT INTO schema_migrations(version) VALUES (?)').run(file); db.exec('COMMIT') } catch (error) { db.exec('ROLLBACK'); throw error } }
++  return files.filter((file) => !applied.has(file))
++}
++export function createSqliteMemberRepository(db) {
++  const select = 'SELECT id,name,role_title,cohort,location,bio,skills_json,interests_json,avatar,email,status,owner_id,reviewed_by,review_note,version FROM members'
++  return {
++    listPublic() { return db.prepare(`${select} WHERE status='approved' ORDER BY id`).all().map(map) },
++    listAll() { return db.prepare(`${select} ORDER BY id`).all().map(map) },
++    find(id) { return map(db.prepare(`${select} WHERE id=?`).get(id)) ?? null },
++    create(item) { const result = db.prepare(`INSERT INTO members(name,role_title,cohort,location,bio,skills_json,interests_json,avatar,email,status,owner_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(item.name,item.role,item.cohort,item.location,item.bio,JSON.stringify(item.skills),JSON.stringify(item.interests),item.avatar,item.email,item.status,item.ownerId); return this.find(result.lastInsertRowid) },
++    transition(id,status,{reviewerId,note}) { db.prepare('UPDATE members SET status=?,reviewed_by=?,review_note=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(status,reviewerId,note,id); return this.find(id) },
++    importBatch(rows, ownerId) { db.exec('BEGIN IMMEDIATE'); try { const created=rows.map((row)=>this.create({...row,status:'submitted',ownerId})); db.exec('COMMIT'); return created } catch(error){ db.exec('ROLLBACK'); if(String(error.message).includes('UNIQUE')) error.code='DUPLICATE_EMAIL'; throw error } },
++  }
++}
++export function seedSqliteUsers(db, env = process.env) {
++  const repo = createSqliteUserRepository(db)
++  const seeds = [{ username: env.MEMBER_USERNAME, password: env.MEMBER_PASSWORD, displayName: '学生成员', role: 'member' }, { username: env.REVIEWER_USERNAME, password: env.REVIEWER_PASSWORD, displayName: '课程审核员', role: 'reviewer' }]
++  for (const item of seeds) if (item.username && item.password) { const { salt, hash } = hashPassword(item.password); repo.upsert({ ...item, passwordSalt: salt, passwordHash: hash }) }
++  return repo
++}
++export function seedSqliteMembers(db) {
++  const repository = createSqliteMemberRepository(db)
++  const existing = new Set(repository.listAll().map((item) => item.email))
++  for (const item of seedMemberRecords) if (!existing.has(item.email)) repository.create(item)
++  return repository.listAll().length
++}
+diff --git a/server/userRepository.js b/server/userRepository.js
+new file mode 100644
+index 0000000..07727b3
+--- /dev/null
++++ b/server/userRepository.js
+@@ -0,0 +1,25 @@
++export function createMemoryUserRepository(users = []) {
++  return { async findByUsername(username) { return users.find((user) => user.username === username) ?? null } }
++}
++
++export function createSqliteUserRepository(database) {
++  return {
++    findByUsername(username) { return database.prepare('SELECT id, username, display_name AS displayName, role, password_salt AS passwordSalt, password_hash AS passwordHash FROM users WHERE username = ?').get(username) ?? null },
++    upsert(user) {
++      database.prepare(`INSERT INTO users(username, display_name, role, password_salt, password_hash) VALUES (?, ?, ?, ?, ?)
++        ON CONFLICT(username) DO UPDATE SET display_name=excluded.display_name, role=excluded.role, password_salt=excluded.password_salt, password_hash=excluded.password_hash`).run(user.username, user.displayName, user.role, user.passwordSalt, user.passwordHash)
++      return this.findByUsername(user.username)
++    },
++  }
++}
++
++export function createMysqlUserRepository(pool) {
++  return {
++    async findByUsername(username) { const [rows] = await pool.execute('SELECT id, username, display_name AS displayName, role, password_salt AS passwordSalt, password_hash AS passwordHash FROM users WHERE username = ?', [username]); return rows[0] ?? null },
++    async upsert(user) {
++      await pool.execute(`INSERT INTO users(username, display_name, role, password_salt, password_hash) VALUES (?, ?, ?, ?, ?)
++        ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), role=VALUES(role), password_salt=VALUES(password_salt), password_hash=VALUES(password_hash)`, [user.username, user.displayName, user.role, user.passwordSalt, user.passwordHash])
++      return this.findByUsername(user.username)
++    },
++  }
++}
+diff --git a/server/workflow.js b/server/workflow.js
+new file mode 100644
+index 0000000..1dbb2d3
+--- /dev/null
++++ b/server/workflow.js
+@@ -0,0 +1,23 @@
++export const allowedTransitions = {
++  draft: ['submitted'],
++  // TODO-A：允许提交后的审核状态
++  submitted: [],
++  approved: [],
++  rejected: ['submitted'],
++}
++
++export function assertTransition(current, next, role) {
++  // TODO-B：校验审核者角色
++  if (true) {
++    const error = new Error('reviewer role required')
++    error.status = 403
++    error.code = 'FORBIDDEN'
++    throw error
++  }
++  if (!allowedTransitions[current]?.includes(next)) {
++    const error = new Error(`${current} cannot transition to ${next}`)
++    error.status = 400
++    error.code = 'INVALID_TRANSITION'
++    throw error
++  }
++}
+diff --git a/src/App.vue b/src/App.vue
+index cb5690c..172b518 100644
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -1,24 +1,36 @@
+ <script setup>
+-import { computed, defineAsyncComponent, ref } from 'vue'
++import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
++import CollaborationPanel from './components/CollaborationPanel.vue'
+ import MemberDetail from './components/MemberDetail.vue'
+ import MemberFilters from './components/MemberFilters.vue'
+ import MemberGrid from './components/MemberGrid.vue'
+ import { members } from './data/members.js'
+ import { filterMembers, publicMembers, skillOptions } from './domain/member.js'
++import { listPublicMembers } from './services/api.js'
+ 
+ const SkillChart = defineAsyncComponent(() => import('./components/SkillChart.vue'))
+ 
+-const authorizedMembers = publicMembers(members)
++const authorizedMembers = ref(publicMembers(members))
++const dataSource = ref('教学数据')
+ const query = ref('')
+ const skill = ref('')
+-const visibleMembers = computed(() => filterMembers(authorizedMembers, { query: query.value, skill: skill.value }))
+-const skills = skillOptions(authorizedMembers)
++const visibleMembers = computed(() => filterMembers(authorizedMembers.value, { query: query.value, skill: skill.value }))
++const skills = computed(() => skillOptions(authorizedMembers.value))
+ const selected = ref(null)
+ 
+ function resetFilters() {
+   query.value = ''
+   skill.value = ''
+ }
++
++onMounted(async () => {
++  try {
++    authorizedMembers.value = await listPublicMembers()
++    dataSource.value = '生产 API 实时数据'
++  } catch {
++    dataSource.value = 'API 暂不可用，显示教学数据'
++  }
++})
+ </script>
+ 
+ <template>
+@@ -27,7 +39,7 @@ function resetFilters() {
+       <span class="brand-mark" aria-hidden="true">群</span>
+       <span>群像云图</span>
+     </a>
+-    <p>P3 · v1.1 搜索与图谱</p>
++    <p>P3 · v2.0 协同管理</p>
+   </header>
+ 
+   <main id="top">
+@@ -52,7 +64,7 @@ function resetFilters() {
+           <p class="eyebrow">MEMBER DIRECTORY</p>
+           <h2 id="members-title">成员画像</h2>
+         </div>
+-        <p>虚构教学数据 · 公开字段经过授权标记 · 保留至 2027-07-31</p>
++        <p>{{ dataSource }} · 公开字段经过授权标记 · 保留至 2027-07-31</p>
+       </div>
+       <MemberFilters
+         v-model:query="query"
+@@ -65,6 +77,8 @@ function resetFilters() {
+       <SkillChart :members="visibleMembers" />
+     </section>
+ 
++    <CollaborationPanel />
++
+     <section class="privacy-strip" aria-labelledby="privacy-title">
+       <p class="eyebrow">DATA PROMISE</p>
+       <h2 id="privacy-title">字段有目的，公开有边界。</h2>
+@@ -76,7 +90,7 @@ function resetFilters() {
+     </section>
+   </main>
+ 
+-  <footer><span>群像云图 P3 v1.1</span><span>为协作而认识，不为收集而收集。</span></footer>
++  <footer><span>群像云图 P3 v2.0</span><span>为协作而认识，不为收集而收集。</span></footer>
+ 
+   <div v-if="selected" class="detail-backdrop" @click.self="selected = null">
+     <MemberDetail :member="selected" @close="selected = null" />
+diff --git a/src/components/CollaborationPanel.vue b/src/components/CollaborationPanel.vue
+new file mode 100644
+index 0000000..017c715
+--- /dev/null
++++ b/src/components/CollaborationPanel.vue
+@@ -0,0 +1,91 @@
++<script setup>
++import { computed, reactive, ref } from 'vue'
++import { downloadExport, importCsv, listReviewMembers, login, previewCsv, reviewMember, submitMember } from '../services/api.js'
++
++const session = ref(null)
++const credentials = reactive({ username: '', password: '' })
++const message = ref('')
++const busy = ref(false)
++const reviewItems = ref([])
++const form = reactive({ name: '', role: '', email: '', cohort: '2026 秋季班', location: '', bio: '', skills: '', interests: '', avatar: '' })
++const csv = ref('name,role,email,skills\n新成员,前端开发,new@example.com,Vue|CSS')
++const preview = ref(null)
++const isReviewer = computed(() => session.value?.user.role === 'reviewer')
++
++async function signIn() {
++  busy.value = true; message.value = ''
++  try { session.value = await login(credentials); message.value = `已登录：${session.value.user.displayName}`; if (isReviewer.value) await refreshReviews() }
++  catch { message.value = '登录失败，请核对账号密码。' }
++  finally { busy.value = false }
++}
++function signOut() { session.value = null; reviewItems.value = []; preview.value = null; message.value = '已退出。' }
++async function sendSubmission() {
++  busy.value = true
++  try { await submitMember(form, session.value.token); message.value = '资料已提交，等待审核。'; Object.assign(form, { name: '', role: '', email: '', cohort: '2026 秋季班', location: '', bio: '', skills: '', interests: '', avatar: '' }) }
++  catch (error) { message.value = error.status === 400 ? '请检查姓名、角色、邮箱和字段长度。' : '提交失败，请稍后重试。' }
++  finally { busy.value = false }
++}
++async function refreshReviews() { reviewItems.value = await listReviewMembers(session.value.token) }
++async function decide(id, status) {
++  busy.value = true
++  try { await reviewMember(id, status, '课堂审核', session.value.token); await refreshReviews(); message.value = status === 'approved' ? '审核通过。' : '已驳回。' }
++  catch (error) { message.value = error.code === 'INVALID_TRANSITION' ? '当前状态不能重复审批。' : '审核失败。' }
++  finally { busy.value = false }
++}
++async function checkCsv() {
++  try { preview.value = await previewCsv(csv.value, session.value.token); message.value = `预览通过：${preview.value.rows.length} 行。` }
++  catch (error) { preview.value = { rows: [], errors: error.details?.rows ?? [] }; message.value = 'CSV 有错误，未写入数据库。' }
++}
++async function commitCsv() {
++  busy.value = true
++  try { const result = await importCsv(csv.value, session.value.token); message.value = `成功导入 ${result.imported} 行，等待审核。`; await refreshReviews() }
++  catch (error) { message.value = error.status === 409 ? '数据库中已有相同邮箱，整批未导入。' : '导入失败，整批未写入。' }
++  finally { busy.value = false }
++}
++async function exportCsv() {
++  const blob = await downloadExport(session.value.token)
++  const url = URL.createObjectURL(blob)
++  const link = document.createElement('a'); link.href = url; link.download = 'p3-members.csv'; link.click(); URL.revokeObjectURL(url)
++}
++</script>
++
++<template>
++  <section id="collaborate" class="collaboration" aria-labelledby="collaboration-title">
++    <div class="collaboration-intro">
++      <p class="eyebrow">CONTROLLED WORKFLOW</p><h2 id="collaboration-title">提交、审核，再公开。</h2>
++      <p>前端按钮不是权限边界；服务器会识别角色、校验状态并用事务保护批量导入。</p>
++    </div>
++    <div class="workspace">
++      <form v-if="!session" class="login-form" @submit.prevent="signIn">
++        <h3>登录协同工作台</h3>
++        <label>用户名<input v-model.trim="credentials.username" autocomplete="username" required /></label>
++        <label>密码<input v-model="credentials.password" type="password" autocomplete="current-password" required /></label>
++        <button class="primary-button" :disabled="busy">登录</button>
++      </form>
++      <template v-else>
++        <div class="session-bar"><p><strong>{{ session.user.displayName }}</strong><span>{{ session.user.role }}</span></p><button type="button" class="reset-button" @click="signOut">退出</button></div>
++        <form v-if="!isReviewer" class="submission-form" @submit.prevent="sendSubmission">
++          <h3>提交我的公开资料</h3>
++          <label>姓名<input v-model.trim="form.name" required minlength="2" maxlength="40" /></label>
++          <label>协作角色<input v-model.trim="form.role" required minlength="2" maxlength="60" /></label>
++          <label>联系邮箱（不公开）<input v-model.trim="form.email" type="email" required /></label>
++          <label>技能（逗号分隔）<input v-model="form.skills" /></label>
++          <label class="wide">公开介绍<textarea v-model="form.bio" maxlength="300"></textarea></label>
++          <button class="primary-button" :disabled="busy">提交审核</button>
++        </form>
++        <div v-else class="review-workspace">
++          <section>
++            <div class="workspace-heading"><h3>待审核成员</h3><button type="button" class="text-button" @click="refreshReviews">刷新</button></div>
++            <ul class="review-list"><li v-for="item in reviewItems" :key="item.id"><div><strong>{{ item.name }}</strong><span>{{ item.role }} · {{ item.status }}</span></div><div v-if="item.status === 'submitted'" class="review-actions"><button type="button" @click="decide(item.id, 'approved')">通过</button><button type="button" @click="decide(item.id, 'rejected')">驳回</button></div></li></ul>
++          </section>
++          <section class="csv-panel">
++            <h3>CSV 预览与事务导入</h3><textarea v-model="csv" aria-label="CSV 内容"></textarea>
++            <div class="review-actions"><button type="button" @click="checkCsv">仅预览</button><button type="button" :disabled="!preview || preview.errors?.length" @click="commitCsv">确认整批导入</button><button type="button" @click="exportCsv">下载脱敏 CSV</button></div>
++            <ul v-if="preview?.errors?.length" class="csv-errors"><li v-for="error in preview.errors" :key="error.line">第 {{ error.line }} 行：{{ error.message || JSON.stringify(error.fields) }}</li></ul>
++          </section>
++        </div>
++      </template>
++      <p class="workspace-message" aria-live="polite">{{ message }}</p>
++    </div>
++  </section>
++</template>
+diff --git a/src/components/MemberComponents.test.js b/src/components/MemberComponents.test.js
+index 9ea891d..0ac4e61 100644
+--- a/src/components/MemberComponents.test.js
++++ b/src/components/MemberComponents.test.js
+@@ -1,6 +1,7 @@
+ import { createSSRApp, h } from 'vue'
+ import { renderToString } from '@vue/server-renderer'
+ import { describe, expect, it } from 'vitest'
++import CollaborationPanel from './CollaborationPanel.vue'
+ import MemberCard from './MemberCard.vue'
+ import MemberDetail from './MemberDetail.vue'
+ import MemberFilters from './MemberFilters.vue'
+@@ -45,4 +46,11 @@ describe('成员画像组件', () => {
+     expect(html).toContain('当前结果的技能分布')
+     expect(html).toContain('Vue 1 人')
+   })
++
++  it('协同工作台默认只展示安全登录入口', async () => {
++    const html = await render(CollaborationPanel)
++    expect(html).toContain('提交、审核，再公开')
++    expect(html).toContain('登录协同工作台')
++    expect(html).not.toContain('下载脱敏 CSV')
++  })
+ })
+diff --git a/src/services/api.js b/src/services/api.js
+new file mode 100644
+index 0000000..c84bb44
+--- /dev/null
++++ b/src/services/api.js
+@@ -0,0 +1,25 @@
++const base = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
++const endpoint = (path) => `${base}${path}`
++
++async function request(path, { token, ...options } = {}) {
++  const headers = { ...(options.body ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}), ...options.headers }
++  const response = await fetch(endpoint(path), { ...options, headers })
++  if (!response.ok) {
++    const body = await response.json().catch(() => ({}))
++    const error = new Error(body.error?.message || `request failed: ${response.status}`)
++    error.status = response.status
++    error.code = body.error?.code
++    error.details = body.error
++    throw error
++  }
++  return response
++}
++
++export async function login(credentials) { return (await (await request('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) })).json()).data }
++export async function listPublicMembers() { return (await (await request('/api/members')).json()).data }
++export async function submitMember(data, token) { return (await (await request('/api/members', { method: 'POST', body: JSON.stringify(data), token })).json()).data }
++export async function listReviewMembers(token) { return (await (await request('/api/review/members', { token })).json()).data }
++export async function reviewMember(id, status, note, token) { return (await (await request(`/api/review/members/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, note }), token })).json()).data }
++export async function previewCsv(csv, token) { return (await (await request('/api/import/preview', { method: 'POST', body: JSON.stringify({ csv }), token })).json()).data }
++export async function importCsv(csv, token) { return (await (await request('/api/import', { method: 'POST', body: JSON.stringify({ csv }), token })).json()).data }
++export async function downloadExport(token) { return (await request('/api/export', { token })).blob() }
+diff --git a/src/styles.css b/src/styles.css
+index dd56475..99e84c2 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -110,6 +110,31 @@ main { overflow: hidden; }
+ .chart { width: 100%; height: 420px; margin-top: 1.5rem; }
+ .chart-summary { margin: 0; padding-top: 1rem; border-top: 1px solid var(--line); color: #4e5d54; font-size: .82rem; line-height: 1.8; }
+ .chart-empty { margin-top: 2rem; padding: 4rem 1rem; border: 1px dashed #859188; text-align: center; }
++.collaboration { padding: clamp(4rem, 8vw, 8rem) clamp(1rem, 5vw, 5rem); display: grid; grid-template-columns: minmax(240px, .7fr) minmax(0, 1.3fr); gap: clamp(2rem, 6vw, 6rem); color: white; background: #17211c; }
++.collaboration-intro h2 { margin: 0; font-family: Georgia, "Noto Serif SC", serif; font-size: clamp(2.8rem, 5vw, 5.5rem); font-weight: 500; line-height: .95; }
++.collaboration-intro > p:last-child { max-width: 430px; color: #aebbb3; line-height: 1.8; }
++.workspace { min-width: 0; padding: clamp(1.25rem, 3vw, 2.5rem); color: var(--ink); background: #fffdf7; }
++.workspace h3 { margin-top: 0; font-family: Georgia, serif; font-size: 1.7rem; font-weight: 500; }
++.login-form, .submission-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
++.login-form h3, .submission-form h3, .wide, .login-form .primary-button { grid-column: 1 / -1; }
++.workspace label { display: grid; gap: .4rem; color: #526058; font-size: .78rem; font-weight: 800; }
++.workspace input, .workspace textarea { width: 100%; min-height: 46px; padding: .7rem; border: 1px solid #94a098; background: white; }
++.workspace textarea { min-height: 110px; resize: vertical; }
++.session-bar, .workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); }
++.session-bar p { display: flex; gap: .8rem; align-items: center; }
++.session-bar span { padding: .25rem .5rem; border-radius: 20px; color: white; background: var(--pine); font-size: .7rem; }
++.review-workspace { display: grid; gap: 2rem; }
++.review-list { margin: 0; padding: 0; list-style: none; }
++.review-list li { padding: .9rem 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); }
++.review-list li div:first-child { display: grid; gap: .25rem; }
++.review-list span { color: #68736c; font-size: .78rem; }
++.review-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
++.review-actions button { padding: .55rem .75rem; border: 1px solid var(--ink); background: var(--acid); cursor: pointer; }
++.review-actions button:disabled { opacity: .45; cursor: not-allowed; }
++.csv-panel { padding-top: 1rem; border-top: 3px solid var(--ink); }
++.csv-panel textarea { margin-bottom: .75rem; font-family: ui-monospace, Consolas, monospace; }
++.csv-errors { color: #9c2f1f; font-size: .8rem; }
++.workspace-message { min-height: 1.5em; margin: 1rem 0 0; color: #526058; font-size: .85rem; }
+ footer { border-top: 1px solid var(--line); border-bottom: 0; }
+ 
+ @media (max-width: 1050px) {
+@@ -127,6 +152,8 @@ footer { border-top: 1px solid var(--line); border-bottom: 0; }
+   .chart-heading { display: block; }
+   .chart { height: 360px; }
+   .privacy-grid { grid-template-columns: 1fr; }
++  .collaboration { grid-template-columns: 1fr; }
++  .login-form, .submission-form { grid-template-columns: 1fr; }
+   .privacy-grid p, .privacy-grid p + p { padding: 1.25rem 0; border-right: 0; border-bottom: 1px solid rgba(255,255,255,.3); }
+   footer { align-items: flex-start; flex-direction: column; gap: .5rem; }
+ }
+diff --git a/tests/api.test.mjs b/tests/api.test.mjs
+new file mode 100644
+index 0000000..be280b9
+--- /dev/null
++++ b/tests/api.test.mjs
+@@ -0,0 +1,96 @@
++import assert from 'node:assert/strict'
++import { after, before, test } from 'node:test'
++import { createApp } from '../server/app.js'
++import { hashPassword } from '../server/auth.js'
++import { createMemoryRepository } from '../server/memoryRepository.js'
++import { createMemoryUserRepository } from '../server/userRepository.js'
++
++const secret = 'test-secret-that-is-longer-than-32-characters'
++const memberPassword = 'member-pass-123'
++const reviewerPassword = 'reviewer-pass-123'
++const memberHash = hashPassword(memberPassword)
++const reviewerHash = hashPassword(reviewerPassword)
++const users = [
++  { id: 1, username: 'student', displayName: '学生成员', role: 'member', passwordSalt: memberHash.salt, passwordHash: memberHash.hash },
++  { id: 2, username: 'teacher', displayName: '课程审核员', role: 'reviewer', passwordSalt: reviewerHash.salt, passwordHash: reviewerHash.hash },
++]
++const repository = createMemoryRepository([{ id: 1, name: '已公开成员', role: '前端开发', email: 'public@example.com', skills: ['Vue'], interests: [], status: 'approved', version: 1 }])
++const app = createApp({ repository, userRepository: createMemoryUserRepository(users), tokenSecret: secret, logger: { info() {}, error() {} } })
++let server
++let baseUrl
++let memberToken
++let reviewerToken
++
++async function request(path, { token, body, ...options } = {}) {
++  return fetch(`${baseUrl}${path}`, { ...options, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body && JSON.stringify(body) })
++}
++
++before(async () => {
++  await new Promise((resolve) => { server = app.listen(0, '127.0.0.1', resolve) })
++  baseUrl = `http://127.0.0.1:${server.address().port}`
++  for (const [role, username, password] of [['member', 'student', memberPassword], ['reviewer', 'teacher', reviewerPassword]]) {
++    const response = await request('/api/auth/login', { method: 'POST', body: { username, password } })
++    const token = (await response.json()).data.token
++    if (role === 'member') memberToken = token; else reviewerToken = token
++  }
++})
++after(() => new Promise((resolve) => server.close(resolve)))
++
++test('健康检查和公开列表无需登录', async () => {
++  assert.equal((await request('/health')).status, 200)
++  const response = await request('/api/members'); const body = await response.json()
++  assert.equal(response.status, 200); assert.equal(body.data.length, 1); assert.equal('email' in body.data[0], false)
++})
++
++test('错误密码统一返回 401', async () => {
++  assert.equal((await request('/api/auth/login', { method: 'POST', body: { username: 'teacher', password: 'wrong' } })).status, 401)
++})
++
++test('未登录不能提交，成员可以提交', async () => {
++  const input = { name: '待审成员', role: '后端开发', email: 'pending@example.com', skills: ['Node.js'] }
++  assert.equal((await request('/api/members', { method: 'POST', body: input })).status, 401)
++  assert.equal((await request('/api/members', { method: 'POST', body: input, token: memberToken })).status, 201)
++})
++
++test('成员不能查看审核列表或审批', async () => {
++  assert.equal((await request('/api/review/members', { token: memberToken })).status, 403)
++  assert.equal((await request('/api/review/members/2/status', { method: 'PATCH', body: { status: 'approved' }, token: memberToken })).status, 403)
++})
++
++test('审核员审批后成员进入公开列表且邮箱不公开', async () => {
++  const reviewed = await request('/api/review/members/2/status', { method: 'PATCH', body: { status: 'approved' }, token: reviewerToken })
++  assert.equal(reviewed.status, 200)
++  const body = await (await request('/api/members')).json()
++  assert.equal(body.data.length, 2); assert.equal(body.data.some((item) => 'email' in item), false)
++})
++
++test('重复审批被状态机拒绝', async () => {
++  const response = await request('/api/review/members/2/status', { method: 'PATCH', body: { status: 'rejected' }, token: reviewerToken })
++  assert.equal(response.status, 400); assert.equal((await response.json()).error.code, 'INVALID_TRANSITION')
++})
++
++test('错误 CSV 预览返回行号且不写数据库', async () => {
++  const beforeCount = (await repository.listAll()).length
++  const response = await request('/api/import/preview', { method: 'POST', body: { csv: 'name,role,email,skills\nX,前端,bad,Vue' }, token: reviewerToken })
++  assert.equal(response.status, 400); assert.equal((await response.json()).error.rows[0].line, 2); assert.equal((await repository.listAll()).length, beforeCount)
++})
++
++test('正确 CSV 整批导入并保持待审核状态', async () => {
++  const csv = 'name,role,email,skills\n批量甲,前端开发,batch-a@example.com,Vue|CSS\n批量乙,后端开发,batch-b@example.com,Node|API'
++  const response = await request('/api/import', { method: 'POST', body: { csv }, token: reviewerToken })
++  assert.equal(response.status, 201); assert.equal((await response.json()).data.imported, 2)
++  assert.equal((await repository.listAll()).filter((item) => item.status === 'submitted').length, 2)
++})
++
++test('重复数据库邮箱导致整批导入失败', async () => {
++  const beforeCount = (await repository.listAll()).length
++  const csv = 'name,role,email,skills\n重复成员,前端开发,batch-a@example.com,Vue\n新成员二,后端开发,new-b@example.com,Node'
++  assert.equal((await request('/api/import', { method: 'POST', body: { csv }, token: reviewerToken })).status, 409)
++  assert.equal((await repository.listAll()).length, beforeCount)
++})
++
++test('导出仅审核员可用并隐藏完整邮箱', async () => {
++  assert.equal((await request('/api/export', { token: memberToken })).status, 403)
++  const response = await request('/api/export', { token: reviewerToken }); const csv = await response.text()
++  assert.equal(response.status, 200); assert.match(csv, /p\*\*\*@example\.com/); assert.doesNotMatch(csv, /pending@example\.com/)
++})
+diff --git a/tests/sqlite.test.mjs b/tests/sqlite.test.mjs
+new file mode 100644
+index 0000000..95b2cb3
+--- /dev/null
++++ b/tests/sqlite.test.mjs
+@@ -0,0 +1,24 @@
++import assert from 'node:assert/strict'
++import test from 'node:test'
++import { createSqliteMemberRepository, migrateSqlite, openSqlite } from '../server/sqliteDatabase.js'
++
++test('SQLite 真实迁移、审核与事务回滚', () => {
++  const db = openSqlite(':memory:')
++  try {
++    assert.deepEqual(migrateSqlite(db), ['001_initial.sql'])
++    assert.equal(db.prepare("SELECT COUNT(*) count FROM sqlite_master WHERE type='table' AND name IN ('users','members','schema_migrations')").get().count, 3)
++    const repository = createSqliteMemberRepository(db)
++    const first = repository.create({ name:'数据库成员',role:'后端开发',cohort:'',location:'',bio:'',skills:['SQLite'],interests:[],avatar:'',email:'sqlite@example.com',status:'submitted',ownerId:null })
++    assert.equal(first.status, 'submitted')
++    assert.equal(repository.listPublic().length, 0)
++    repository.transition(first.id, 'approved', { reviewerId: null, note: '通过' })
++    assert.equal(repository.listPublic().length, 1)
++    const before = repository.listAll().length
++    assert.throws(() => repository.importBatch([
++      { name:'重复记录',role:'前端开发',cohort:'',location:'',bio:'',skills:[],interests:[],avatar:'',email:'sqlite@example.com' },
++      { name:'不应写入',role:'前端开发',cohort:'',location:'',bio:'',skills:[],interests:[],avatar:'',email:'new@example.com' },
++    ], null), (error) => error.code === 'DUPLICATE_EMAIL')
++    assert.equal(repository.listAll().length, before)
++    assert.equal(db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1)
++  } finally { db.close() }
++})
+diff --git a/tests/workflow.test.mjs b/tests/workflow.test.mjs
+new file mode 100644
+index 0000000..286700d
+--- /dev/null
++++ b/tests/workflow.test.mjs
+@@ -0,0 +1,38 @@
++import assert from 'node:assert/strict'
++import test from 'node:test'
++import { exportMembersCsv, parseMemberCsv, safeSpreadsheetCell } from '../server/csv.js'
++import { validateMemberInput } from '../server/memberInput.js'
++import { assertTransition } from '../server/workflow.js'
++
++test('成员输入校验覆盖必填、邮箱和长度', () => {
++  const errors = validateMemberInput({ name: 'A', role: '', email: 'bad', bio: 'x'.repeat(301) })
++  assert.deepEqual(Object.keys(errors).sort(), ['bio', 'email', 'name', 'role'])
++})
++
++test('合法与非法审核状态转换可区分', () => {
++  assert.doesNotThrow(() => assertTransition('submitted', 'approved', 'reviewer'))
++  assert.throws(() => assertTransition('approved', 'rejected', 'reviewer'), (error) => error.code === 'INVALID_TRANSITION')
++})
++
++test('普通成员不能执行审核转换', () => {
++  assert.throws(() => assertTransition('submitted', 'approved', 'member'), (error) => error.status === 403)
++})
++
++test('CSV 预览报告缺表头、无效行和重复邮箱', () => {
++  assert.equal(parseMemberCsv('name,email\n测试,a@example.com').errors[0].line, 1)
++  const parsed = parseMemberCsv('name,role,email,skills\n测试成员,前端,a@example.com,Vue\n另一成员,后端,a@example.com,Node')
++  assert.equal(parsed.rows.length, 1)
++  assert.equal(parsed.errors[0].line, 3)
++})
++
++test('CSV 单元格阻止公式注入', () => {
++  assert.equal(safeSpreadsheetCell('=1+1'), "'=1+1")
++  assert.equal(safeSpreadsheetCell('正常'), '正常')
++})
++
++test('脱敏导出隐藏完整邮箱并清洗危险公式', () => {
++  const csv = exportMembersCsv([{ name: '=HYPERLINK()', role: '前端', status: 'approved', email: 'person@example.com', skills: ['Vue'] }])
++  assert.match(csv, /p\*\*\*@example\.com/)
++  assert.doesNotMatch(csv, /person@example\.com/)
++  assert.match(csv, /'=HYPERLINK/)
++})
+diff --git a/tools/prepare-env.mjs b/tools/prepare-env.mjs
+new file mode 100644
+index 0000000..456d3e3
+--- /dev/null
++++ b/tools/prepare-env.mjs
+@@ -0,0 +1,7 @@
++import {existsSync,readFileSync,writeFileSync} from 'node:fs';
++import {randomBytes} from 'node:crypto';
++if (existsSync('.env')) { console.log('.env 已存在，保留原配置。'); process.exit(0); }
++let text=readFileSync('.env.example','utf8');
++text=text.replace(/^SESSION_SECRET=.*$/m,'SESSION_SECRET='+randomBytes(32).toString('hex'));
++for(const key of ['ADMIN_PASSWORD','MEMBER_PASSWORD','REVIEWER_PASSWORD']) text=text.replace(new RegExp('^'+key+'=.*$','m'),key+'='+randomBytes(12).toString('hex'));
++writeFileSync('.env',text); console.log('.env 已创建；本机登录账号密码请在 VS Code 打开 .env 查看，不上传该文件。');
+diff --git a/vite.config.js b/vite.config.js
+index 5c55e07..e98d60d 100644
+--- a/vite.config.js
++++ b/vite.config.js
+@@ -3,7 +3,13 @@ import vue from '@vitejs/plugin-vue'
+ 
+ export default defineConfig({
+   plugins: [vue()],
+-  server: { host: '127.0.0.1', port: 5173, strictPort: true },
++  server: {
++    host: '127.0.0.1', port: 5173, strictPort: true,
++    proxy: {
++      '/api': 'http://127.0.0.1:3020',
++      '/health': 'http://127.0.0.1:3020',
++    },
++  },
+   test: {
+     environment: 'node',
+     include: ['src/**/*.test.js'],
