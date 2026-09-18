@@ -1,0 +1,13 @@
+/* 第 2 课：基础样式保留。把下面的变量与规则加入 styles.css。 */
+:root { --heading: #254a40; --subheading: #7c6348; --background: #fbfaf6; --body-size: 19px; }
+body { background: var(--background); font-size: var(--body-size); }
+h1, h2 { color: var(--heading); }
+h1 { font-size: 46px; }
+h1 span { font-size: 28px; margin-left: 20px; }
+h2 { font-size: 30px; padding: 8px 14px; border-left: 3px solid #b8a27d; background: #edf1ea; }
+h3, .skills-list strong { color: var(--subheading); }
+a { color: #42635b; }
+.section { margin-top: 32px; padding-top: 28px; border-top: 1px solid #e1ddd3; }
+.experience-item, .research-item { margin-bottom: 24px; }
+.profile-details > div { margin: 12px 0; }
+.profile-details span { color: #6d746d; }
