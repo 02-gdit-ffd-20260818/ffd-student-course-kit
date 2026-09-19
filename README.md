@@ -1,35 +1,185 @@
-# 我的个人主页
+# 项目 1 · 第 02 课课堂操作手册
 
-第 02 课：CSS字体配色与盒模型。这是课前状态；请按课堂任务修改，完成前看到旧效果是正常的。
+## CSS 字体配色与盒模型
 
-## 打开
+课堂统一使用 Trae IDE。一次课共 3×45 分钟。第三个课时教师最多讲 15 分钟，至少留 30 分钟给学生完成、推送、部署和交作业。
 
-Windows：在文件资源管理器双击 index.html；编辑文件后 Ctrl+S 保存，浏览器 Ctrl+R 刷新。HTML/CSS/JavaScript 写在文件中，不输入终端。
+效果参考：https://ffd-p1-web-v2-20260918.netlify.app/lesson-02/
 
-## 可选本地服务
+本课主要文件：`lesson-02-task.css`。本课目标：修改颜色变量、字号、标题样式和内容间距。
 
-先确认已安装 Node.js，然后在本工程目录运行。Windows CMD、PowerShell 与 Ubuntu Bash 均可使用：
+## 一、上课只使用这一个入口
 
-```text
-node tools/serve.mjs
+学生进入本课工程后只阅读本 `README.md`。教师答案统一放在 `教师答案/lesson-02/README.md`。
+
+## 二、3×45 分钟安排
+
+| 课时 | 教师与学生安排 | 结果 |
+|---|---|---|
+| 第 1 个 45 分钟 | 教师展示效果和启动方法；学生选择路线、克隆、用 Trae 打开并本地运行 | 本地工程可用 |
+| 第 2 个 45 分钟 | 教师讲核心代码；学生完成任务 A、B，建立本课仓库并开启 Pages | 主要功能完成 |
+| 第 3 个 45 分钟前 15 分钟 | 教师只复盘验收、Git 和部署，不再增加新知识 | 学生明确交付 |
+| 第 3 个 45 分钟后 30 分钟 | 学生补完、测试、commit、push、检查 Pages、交作业 | 完成线上交付 |
+
+## 三、选择启动路线
+
+# 项目 1 · 第 02 课双入口启动
+
+无论从哪条路线开始，最终都在独立目录 `p1-lesson-02` 中开发，并推送到本课新仓库 `p1-lesson-02-学号`。
+
+## 路线 A：以上次自己的作品为基础
+
+适合已经完成第 01 课并希望保留个人修改的学生。下面以学生上次仓库 `p1-lesson-01-学号` 为例。
+
+### Windows CMD
+
+```bat
+cd /d "%USERPROFILE%\web-work"
+git clone https://github.com/你的用户名/p1-lesson-01-学号.git p1-lesson-02
+cd /d "p1-lesson-02"
+git remote rename origin previous
+git branch -M main
 ```
 
-解释：用 Node 启动当前目录的静态服务，不安装依赖。打开 http://127.0.0.1:5173/；终端保持运行。停止服务按 Ctrl+C。只有采用服务方式时，另开一个终端运行 Git。
+### Windows PowerShell
 
-## 修改位置
+```powershell
+Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'web-work')
+git clone https://github.com/你的用户名/p1-lesson-01-学号.git p1-lesson-02
+Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'web-work\p1-lesson-02')
+git remote rename origin previous
+git branch -M main
+```
 
-- index.html：资料、经历、作品的语义结构。
-- styles.css：颜色、字号、布局。
-- app.js（第4课起）：导航高亮。
-- works-data.js / works-render.js（第5课起）：作品数据与生成方式。
+`previous` 保留上次仓库来源。不要把本课结果推回 `previous`，这样第 01 课的网站和提交不会被覆盖。
 
-## 发布
+## 路线 B：从教师本课模板开始
 
-只提交自己的资料。GitHub 仓库 Settings → Pages → Deploy from a branch → main → /(root) → Save。发布后的网址以 Pages 页面显示为准。
+适合缺课补做、没有个人项目、上次工程损坏，或希望使用统一起点的学生。
 
-## 我的交付记录
+### Windows CMD
 
-运行方式：双击 index.html。
-已检查：图片、四个作品链接、手机布局（第3课起）、导航（第4课起）。
-本课修改：请写自己完成的内容。
-线上网址：请粘贴自己的发布网址。
+```bat
+cd /d "%USERPROFILE%\web-work"
+git clone --branch p1-l02-standalone-v3.0 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git p1-lesson-02
+cd /d "p1-lesson-02"
+git remote rename origin course
+git branch -M main
+```
+
+### Windows PowerShell
+
+```powershell
+Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'web-work')
+git clone --branch p1-l02-standalone-v3.0 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git p1-lesson-02
+Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'web-work\p1-lesson-02')
+git remote rename origin course
+git branch -M main
+```
+
+教师模板已经包含本课所需的前置效果，不要求补做缺席课程。
+
+## 两条路线共同的后续步骤
+
+1. 在 GitHub 新建空的公开仓库 `p1-lesson-02-学号`，不要勾选 README。
+2. 连接本课新仓库：
+
+```text
+git remote add origin https://github.com/你的用户名/p1-lesson-02-学号.git
+git push -u origin main
+git remote -v
+```
+
+3. 开发完成后正常执行 `git add`、`git commit`、`git push`。
+4. 在本课新仓库开启 GitHub Pages。
+
+## 远程名称检查
+
+- 路线 A：`previous` 指向学生上次仓库，`origin` 指向本课新仓库。
+- 路线 B：`course` 指向教师模板仓库，`origin` 指向本课新仓库。
+
+这样既能继承学生上次作品，也能保证每次课的代码、提交和部署互不覆盖。
+
+
+### 路线 A 领取本课文件
+
+```text
+git remote add course https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git
+git fetch course p1-l02-standalone-v3.0
+git checkout course/p1-l02-standalone-v3.0 -- lesson-02-task.css
+```
+
+在 `index.html` 的 `styles.css` 后确认已引用 `lesson-02-task.css`。
+
+## 四、使用 Trae IDE
+
+1. 打开 Trae IDE，选择“打开文件夹 / Open Folder”。
+2. 打开 `%USERPROFILE%\web-work\p1-lesson-02`。
+3. 在 Trae 左侧确认 `index.html`、`styles.css` 和本课主要文件存在。
+4. 打开 Trae 内置终端，后续 Git 命令全部在这里运行。
+5. 双击 `index.html` 本地运行；修改后按 `Ctrl+S`，浏览器按 `Ctrl+R`。
+
+可选本地服务：`node tools/serve.mjs`，打开 http://127.0.0.1:5173/，停止按 `Ctrl+C`。
+
+## 五、本课任务
+
+# 第02课任务：CSS字体配色与盒模型
+
+本课效果：https://ffd-p1-web-v2-20260918.netlify.app/lesson-02/
+
+## 任务 A：字体与颜色（对应PPT第10页）
+
+保留 styles.css 原有起步规则。
+
+打开模板根目录已经准备好的 lesson-02-task.css，不需要从其他课程或 resources 目录复制文件。
+
+修改 --heading、--body-size 后保存刷新。
+
+成功标志：正文暖白背景，标题墨绿，字号变化可见。
+
+## 任务 B：让长页面好读（对应PPT第13页）
+
+调整标题与段落间距。
+
+把项目经历之间的间距增大，再观察。
+
+用开发者工具查看一个 h2 的样式。
+
+用截图对比修改前后，解释一个选择。
+
+成功标志：主标题、次标题、正文能区分；不靠空格凑布局。
+
+## 交付
+
+运行截图、个人提交编号、线上网址（发布课）、一句代码解释。遇到故障写明命令、目录和完整错误，不只写“运行不了”。
+
+
+## 六、保存、推送与部署
+
+在 Trae 内置终端先运行 `git status` 和 `git diff`。确认没有密码、临时文件和无关文件后：
+
+```text
+git add .
+git commit -m "完成项目1第02课"
+git push
+git log -1 --oneline
+```
+
+GitHub Pages：`Settings → Pages → Deploy from a branch → main → /(root) → Save`。
+
+## 七、交作业
+
+提交姓名、学号、Git 提交编号、GitHub 仓库地址、GitHub Pages 地址和一句代码解释。
+
+## 八、缺课补做
+
+没有个人项目时直接走路线 B。教师模板已经包含本课需要的前置效果，不要求先补缺席课程。
+
+## 九、常见故障
+
+- `destination path already exists`：改用新的空目录。
+- `fatal: not a git repository`：先进入本课目录。
+- Trae 看不到文件：确认打开的是 `p1-lesson-02`。
+- 页面没变化：确认 `Ctrl+S`，再按 `Ctrl+F5`。
+- `git push` 没有上游：运行 `git push -u origin main`。
+- Pages 404：检查 Public、main、`/(root)` 和根目录 `index.html`。
