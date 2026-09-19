@@ -1,6 +1,6 @@
 # 项目 1 · 第 3 课起步工程
 
-本目录供缺课补做或第一次加入项目的学生使用。正常跟班的学生继续使用自己的 `p1-homepage`，只从课程资源复制 `resources/lesson-03-task.css`。
+本目录是第 3 课完整独立快照。无论是否参加前两课，都直接使用本目录开发；不要从其他课程复制文件。下载、建立个人远程仓库和独立部署的命令见 `START-HERE.md`。
 
 ## 打开与运行
 
@@ -11,7 +11,7 @@
 
 1. `index.html` 已在 `styles.css` 后引入 `lesson-03-task.css`。
 2. 打开 `lesson-03-task.css`，只修改 `TODO A1`、`TODO A2`、`TODO B1`、`TODO B2`、`TODO B3`。
-3. 详细命令见仓库根目录 `lesson-03-start-here.md`。
+3. 详细命令见本目录 `START-HERE.md`。
 
 ## 发布
 
