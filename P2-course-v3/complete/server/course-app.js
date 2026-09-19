@@ -28,7 +28,7 @@ export function createCourseApp(db, secret, options={}) {
     if(a.count>40)return fail(res,429,'操作过于频繁，请稍后重试');next()
   })
   app.param('id', (req,res,next,value) => { if(!/^[1-9][0-9]*$/.test(value)||!Number.isSafeInteger(Number(value)))return fail(res,400,'编号格式不正确');next() })
-  app.get('/health',async(req,res)=>{await db.query('SELECT 1');res.json({ok:true,database:db.driver,project:'P2课程博客v3.0'})})
+  app.get('/health',async(req,res)=>{await db.query('SELECT 1');res.json({ok:true,database:db.driver,project:'P2课程博客v3.1'})})
   app.post('/api/auth/register',async(req,res)=>{
     const username=String(req.body?.username||'').trim().toLowerCase(),displayName=String(req.body?.displayName||'').trim(),password=req.body?.password
     if(!/^[a-z0-9_]{3,24}$/.test(username)||!displayName||displayName.length>24||typeof password!=='string'||password.length<12||password.length>128)return fail(res,400,'用户名3—24位字母/数字/下划线，昵称1—24字，密码12—128字符')

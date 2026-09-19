@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
+import { apiUrl } from '../services/apiBase.js'
 const publicPreview=import.meta.env.VITE_PUBLIC_PREVIEW==='1'
 const props=defineProps({articleId:{type:Number,required:true}}),auth=useAuthStore()
 const comments=ref([]),body=ref(''),error=ref(''),loading=ref(false),saving=ref(false)
@@ -9,7 +10,7 @@ async function request(url,method='GET',data){
  if(publicPreview){if(method==='GET')return [];throw new Error('请运行本机完整工程验证评论功能')}
  const headers={};if(auth.session?.token)headers.authorization='Bearer '+auth.session.token
  if(data)headers['content-type']='application/json'
- const response=await fetch(url,{method,headers,body:data?JSON.stringify(data):undefined})
+ const response=await fetch(apiUrl(url),{method,headers,body:data?JSON.stringify(data):undefined})
  const payload=response.status===204?{}:await response.json().catch(()=>({}))
  if(!response.ok)throw new Error(payload.error?.message||'评论暂时无法加载，请重试')
  return payload.data

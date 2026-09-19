@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { getAccessToken } from '../services/authSession.js'
+import { apiUrl } from '../services/apiBase.js'
 import { useRouter } from 'vue-router'
 import { useArticles } from '../composables/useArticles.js'
 
@@ -24,7 +25,7 @@ async function upload(event,item){
  if(file.size>40*1024*1024){formError.value='文件不能超过40MB';return}
  uploading.value=true;formError.value=''
  try{ const data=new FormData();data.append('file',file)
-  const response=await fetch('/api/media/upload',{method:'POST',headers:{authorization:'Bearer '+getAccessToken()},body:data})
+  const response=await fetch(apiUrl('/api/media/upload'),{method:'POST',headers:{authorization:'Bearer '+getAccessToken()},body:data})
   const payload=await response.json();if(!response.ok)throw new Error(payload.error?.message||'上传失败')
   item.url=payload.data.url;item.type=payload.data.type
  }catch(e){formError.value=e.message}finally{uploading.value=false;event.target.value=''}

@@ -1,6 +1,5 @@
 import { getAccessToken } from './authSession.js'
-
-const apiBase = String(import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '')
+import { apiUrl } from './apiBase.js'
 
 async function request(path, options = {}, fetcher = fetch) {
   if (import.meta.env.VITE_PUBLIC_PREVIEW === '1') {
@@ -8,7 +7,7 @@ async function request(path, options = {}, fetcher = fetch) {
     throw new Error('在线写入尚未接通，请运行本机完整工程。')
   }
   const token = getAccessToken()
-  const response = await fetcher(`${apiBase}${path}`, {
+  const response = await fetcher(apiUrl(path), {
     ...options,
     headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...options.headers },
   })
