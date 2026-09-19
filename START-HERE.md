@@ -36,7 +36,7 @@ code .
 
 ## 本地运行与开发
 
-双击 `index.html`；修改后按 `Ctrl+S`，浏览器按 `Ctrl+R`。也可运行 `node tools/serve.mjs` 后打开 http://127.0.0.1:5173/。打开 `课堂任务.md` 完成任务 A、B。本课主要修改：styles.css。起步工程已经包含本课需要的前置效果。
+双击 `index.html`；修改后按 `Ctrl+S`，浏览器按 `Ctrl+R`。也可运行 `node tools/serve.mjs` 后打开 http://127.0.0.1:5173/。打开 `课堂任务.md` 完成任务 A、B。本课主要修改：lesson-02-task.css。起步工程已经包含本课需要的前置效果。
 
 ## 保存版本
 
