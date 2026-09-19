@@ -207,7 +207,7 @@ http://127.0.0.1:5173/
 教师上课前应同时打开教学资源包中的答案文件：
 
 ```text
-教师答案/lesson-03/第03课_5个TODO教师答案.md
+教师答案/lesson-03/README.md
 教师答案/lesson-03/lesson-03-task.css
 ```
 
