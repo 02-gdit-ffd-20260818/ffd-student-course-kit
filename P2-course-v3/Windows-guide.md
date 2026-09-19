@@ -59,7 +59,7 @@ VS Code中“终端→新建终端”；进入complete目录后运行下面第�
 npm.cmd run start:api
 ```
 
-作用：启动Node接口，监听本机3000端口，创建真实数据库并写入六篇课程文章。看到“课程博客API”表示后端开始监听。
+作用：启动Node接口，监听本机3000端口，创建真实数据库并写入七篇课程文章。看到“课程博客API”表示后端开始监听。
 
 再次选择“终端→新建终端”，这是终端B。若目录不是complete，先按上面的CMD或PowerShell进入目录，再运行：
 
@@ -81,6 +81,10 @@ npm.cmd run dev
 |第10次|complete/server/course-db.js、scripts/inspect-course-db.mjs|查找三张表、主外键、参数化SQL；注册及留言后运行npm.cmd run db:inspect，查看真实记录，重启后端再查。|
 |第11次|complete/src/views/RegisterView.vue、src/components/ArticleComments.vue、server/course-app.js|修改注册提示、评论输入区；验证游客不可发言、用户只删自己的评论、教师可管理。每次只修改一处并立即验收。|
 
+媒体知识分散到五次课，不另外堆成一整节难课：第7次讲图片标签和响应式宽度；第8次讲媒体表单与插入位置；第9次观察图片、音频和视频的HTTP请求，上传由教师演示；第10次观察`media_json`如何保存地址和说明；第11次完成权限、重启保存和部署验收。基础任务只要求图片加音频或视频二选一。
+
+教师登录管理页面后，可以添加图片、音乐或视频。填写`/media/course-diagram.png`、`/media/learning-notes.wav`或`/media/comment-flow.mp4`即可使用工程随附资源；也可上传PNG/JPEG/WebP、MP3/WAV/OGG、MP4/WebM文件。图片必须填写替代文字，所有媒体填写说明和插入段落。普通注册用户不能上传；单个文件最多40MB。
+
 完整工程带有最终功能，用来对照与验证，不代替原有学生起步模板的开发任务。原有starter/lesson-07及lesson-08仍保留。stage-7、stage-8是本版阶段答案；第9—11共用complete工程，以不同任务查看工程演进，不声称是三个独立隔离后端。
 
 新页面文章里也写有目标、文件位置、代码解释及验收方法。正文内容在server/data/seedArticles.js。已有数据库不会因修改种子自动覆盖文章：使用teacher登录后通过管理页编辑；public/articles.json只服务只读页面预览。
@@ -98,6 +102,14 @@ npm.cmd run build
 ```
 
 第一行读取本机真实数据库结构、记录数量和评论关联结果；第二行执行数据库及组件测试；第三行生成dist前端文件。测试使用临时数据库，不修改课堂数据库。
+
+备份时先在终端A按`Ctrl+C`停止后端，然后在另一个终端运行：
+
+```bat
+npm.cmd run db:backup -- --confirmed-stopped
+```
+
+参数表示你已经确认后端停止。脚本把数据库主文件、WAL、上传媒体和本机`.env`放入`var/backups`，并逐字节执行SHA-256校验。完成后重新运行`npm.cmd run start:api`。整个`var/backups`含本机账号配置，不提交Git。
 
 ## 7. 推送到自己的远程仓库
 
