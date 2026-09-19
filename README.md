@@ -1,35 +1,18 @@
-# 我的个人主页
+# 项目 1 · 第 3 课起步工程
 
-第 03 课：响应式布局与作品图像。这是课前状态；请按课堂任务修改，完成前看到旧效果是正常的。
+本目录供缺课补做或第一次加入项目的学生使用。正常跟班的学生继续使用自己的 `p1-homepage`，只从课程资源复制 `resources/lesson-03-task.css`。
 
-## 打开
+## 打开与运行
 
-Windows：在文件资源管理器双击 index.html；编辑文件后 Ctrl+S 保存，浏览器 Ctrl+R 刷新。HTML/CSS/JavaScript 写在文件中，不输入终端。
+- 最简单：双击 `index.html`，修改后按 `Ctrl+S`，回到浏览器按 `Ctrl+R`。
+- 本地服务：在本目录运行 `node tools/serve.mjs`，再打开 http://127.0.0.1:5173/；停止服务按 `Ctrl+C`。
 
-## 可选本地服务
+## 本课修改
 
-先确认已安装 Node.js，然后在本工程目录运行。Windows CMD、PowerShell 与 Ubuntu Bash 均可使用：
-
-```text
-node tools/serve.mjs
-```
-
-解释：用 Node 启动当前目录的静态服务，不安装依赖。打开 http://127.0.0.1:5173/；终端保持运行。停止服务按 Ctrl+C。只有采用服务方式时，另开一个终端运行 Git。
-
-## 修改位置
-
-- index.html：资料、经历、作品的语义结构。
-- styles.css：颜色、字号、布局。
-- app.js（第4课起）：导航高亮。
-- works-data.js / works-render.js（第5课起）：作品数据与生成方式。
+1. `index.html` 已在 `styles.css` 后引入 `lesson-03-task.css`。
+2. 打开 `lesson-03-task.css`，只修改 `TODO A1`、`TODO A2`、`TODO B1`、`TODO B2`、`TODO B3`。
+3. 详细命令见仓库根目录 `lesson-03-start-here.md`。
 
 ## 发布
 
-只提交自己的资料。GitHub 仓库 Settings → Pages → Deploy from a branch → main → /(root) → Save。发布后的网址以 Pages 页面显示为准。
-
-## 我的交付记录
-
-运行方式：双击 index.html。
-已检查：图片、四个作品链接、手机布局（第3课起）、导航（第4课起）。
-本课修改：请写自己完成的内容。
-线上网址：请粘贴自己的发布网址。
+推送到自己的 GitHub 仓库后，进入 `Settings → Pages`，选择 `Deploy from a branch → main → /(root) → Save`。实际网址以 Pages 页面显示为准。
