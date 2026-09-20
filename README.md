@@ -1,4 +1,4 @@
-# 项目 1 · 第 3 课课堂操作手册
+﻿# 项目 1 · 第 3 课课堂操作手册
 
 ## Trae IDE、双入口、3×45 分钟完成开发与上线
 
@@ -107,10 +107,10 @@ https://ffd-p1-web-v2-20260918.netlify.app/lesson-03/
 打开 CMD：
 
 ```bat
-mkdir "%USERPROFILE%\web-work"
-cd /d "%USERPROFILE%\web-work"
+mkdir "%USERPROFILE%\Desktop\web-work"
+cd /d "%USERPROFILE%\Desktop\web-work"
 git clone https://github.com/你的用户名/p1-lesson-02-学号.git p1-lesson-03
-cd /d "%USERPROFILE%\web-work\p1-lesson-03"
+cd /d "%USERPROFILE%\Desktop\web-work\p1-lesson-03"
 git remote rename origin previous
 git branch -M main
 ```
@@ -141,10 +141,10 @@ git checkout course/p1-l03-standalone-v3.0 -- lesson-03-task.css
 ### 路线 B：克隆教师完整模板
 
 ```bat
-mkdir "%USERPROFILE%\web-work"
-cd /d "%USERPROFILE%\web-work"
+mkdir "%USERPROFILE%\Desktop\web-work"
+cd /d "%USERPROFILE%\Desktop\web-work"
 git clone --branch p1-l03-standalone-v3.0 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git p1-lesson-03
-cd /d "%USERPROFILE%\web-work\p1-lesson-03"
+cd /d "%USERPROFILE%\Desktop\web-work\p1-lesson-03"
 git remote rename origin course
 git branch -M main
 ```
@@ -158,7 +158,7 @@ git branch -M main
 3. 选择：
 
 ```text
-C:\Users\当前用户名\web-work\p1-lesson-03
+C:\Users\当前用户名\Desktop\web-work\p1-lesson-03
 ```
 
 4. 确认 Trae 左侧文件区能看到：
@@ -187,13 +187,13 @@ tools
 可选本地服务，在 Trae 内置终端运行：
 
 ```text
-node tools/serve.mjs
+npx live-server --port=7000 --host=0.0.0.0
 ```
 
 然后打开：
 
 ```text
-http://127.0.0.1:5173/
+http://127.0.0.1:7000/
 ```
 
 停止服务按 `Ctrl+C`。
@@ -483,7 +483,7 @@ p1-lesson-03-new
 当前终端不在工程目录。CMD：
 
 ```bat
-cd /d "%USERPROFILE%\web-work\p1-lesson-03"
+cd /d "%USERPROFILE%\Desktop\web-work\p1-lesson-03"
 ```
 
 ## 3. Trae 中看不到任务文件
@@ -527,3 +527,94 @@ git push -u origin main
 6. 有可访问的 GitHub Pages 地址。
 
 六项完成即表示第 3 课真正落地。
+
+## 命令逐项解释（课堂必须讲清楚）
+
+所有项目统一放在桌面：`C:\Users\当前用户名\Desktop\web-work`。例如用户名是 HUAWEI，实际路径就是 `C:\Users\HUAWEI\Desktop\web-work`。命令使用 `%USERPROFILE%` 或 `$env:USERPROFILE`，可以自动适应不同用户名。
+
+### 建立桌面工作区
+
+CMD：
+
+```bat
+mkdir "%USERPROFILE%\Desktop\web-work" 2>nul
+cd /d "%USERPROFILE%\Desktop\web-work"
+dir
+```
+
+PowerShell 或 Trae 终端：
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\Desktop\web-work"
+Set-Location "$env:USERPROFILE\Desktop\web-work"
+Get-Location
+```
+
+| 命令 | 为什么执行 | 成功标志 |
+|---|---|---|
+| `mkdir` / `New-Item` | 在桌面建立唯一的项目总目录；以后学生知道去哪里找代码 | 桌面出现 `web-work` |
+| `2>nul` | CMD 中隐藏“目录已经存在”的多余提示，不会删除已有文件 | 命令继续执行 |
+| `cd /d` | CMD 中进入目录；`/d` 允许同时切换盘符 | 提示符末尾为 `Desktop\web-work>` |
+| `Set-Location` | PowerShell 中进入目录，与 `cd` 作用相同 | 当前路径改变 |
+| `dir` / `Get-Location` | 检查当前文件列表或绝对路径，防止在错误目录执行 Git | 路径包含 `Desktop\web-work` |
+
+### 克隆命令
+
+```bash
+git clone --branch 本课分支 --single-branch 仓库网址 本课文件夹
+```
+
+- `git clone`：下载代码以及 Git 版本历史。
+- `--branch`：指定本课模板分支，防止拿错课次。
+- `--single-branch`：只下载该课分支，减少无关内容。
+- 最后的文件夹名：规定项目在桌面的保存位置，不覆盖其他课次。
+
+### 统一启动命令
+
+```bash
+npx live-server --port=7000 --host=0.0.0.0
+```
+
+- `npx`：临时下载并运行工具，不需要在学生项目中保存 `node_modules`。
+- `live-server`：把当前文件夹作为静态网站运行，保存代码后通常自动刷新。
+- `--port=7000`：六次课统一使用 7000 端口。
+- `--host=0.0.0.0`：监听本机网络接口；本机浏览器仍打开 `http://127.0.0.1:7000`。
+- 第一次提示安装时输入 `y` 并回车；停止服务时按 `Ctrl+C`。
+
+### Git 提交命令
+
+```bash
+git remote -v
+git status
+git add .
+git commit -m "说明本次完成了什么"
+git push
+```
+
+| 命令 | 含义 |
+|---|---|
+| `git remote -v` | 检查将要推送到哪个仓库，防止推到教师仓库 |
+| `git status` | 查看修改、暂存和未跟踪文件 |
+| `git add .` | 把当前项目中的修改加入下一次提交 |
+| `git commit -m` | 建立带说明、可回退的本地版本 |
+| `git push` | 把本地提交发送到个人远程仓库 |
+
+从教师模板开始的学生先在 GitHub 或 Gitee 建立空仓库，再执行：
+
+```bash
+git remote rename origin teacher
+git remote add origin <自己的空仓库网址>
+git branch -M main
+git push -u origin main
+```
+
+`rename` 保留教师地址供查看；`add origin` 把默认推送目标改成学生自己的仓库；`-u` 建立后续默认跟踪关系。
+## 5 个 TODO 的前后变化与代码解释
+
+1. **A1 `display: grid`**：操作前是 block 单列；grid 启用二维网格；操作后作品开始按网格排列。
+2. **A2 `repeat(2, minmax(0, 1fr))`**：`repeat(2,...)` 建两列，`1fr` 平分空间，`minmax(0,1fr)` 防止内容撑破；操作后电脑每行两张卡片。
+3. **B1 `transition: transform 180ms ease, box-shadow 180ms ease`**：指定动画属性、时长和速度曲线；操作后悬停变化平滑。
+4. **B2 `translateY(-4px)`**：负 Y 值表示向上移动，不影响周围排版；操作后卡片悬停或聚焦时轻微上移。
+5. **B3 手机端 `1fr`**：媒体查询只在宽度不超过640px时覆盖桌面规则；操作前手机仍两列，操作后手机单列。
+
+教师每次只改一行，保存并刷新，让学生观察后再解释下一行。
