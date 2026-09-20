@@ -1,10 +1,18 @@
 /* 第 2 课独立任务文件：修改变量和间距后保存刷新。 */
 :root {
-  /* TODO CSS-A：标题颜色变量。改一处，所有使用 var(--heading) 的标题同步变化。 */
+  /* TODO CSS-A：修改标题颜色变量。
+   * :root 代表整个网页的根元素，适合存放全站都能使用的 CSS 自定义属性。
+   * --heading 是自定义属性名，开头必须是两个减号；#254a40 是十六进制颜色值。
+   * h1、h2 中的 var(--heading) 会读取这个值，因此这里只改一次即可统一更换标题颜色。
+   */
   --heading: #254a40;
   --subheading: #7c6348;
   --background: #fbfaf6;
-  /* TODO CSS-B：正文基础字号。修改后对比阅读舒适度，避免只追求“大”。 */
+  /* TODO CSS-B：修改正文基础字号。
+   * --body-size 保存字号；19px 表示 19 个 CSS 像素，不是 19 磅。
+   * body 的 font-size: var(--body-size) 会读取它，普通文字会继承 body 的字号。
+   * 数值增大文字变大，数值减小文字变小；修改后要检查手机和电脑上的阅读效果。
+   */
   --body-size: 19px;
 }
 
@@ -12,11 +20,19 @@ body { background: var(--background); font-size: var(--body-size); }
 h1, h2 { color: var(--heading); }
 h1 { font-size: 46px; }
 h1 span { font-size: 28px; margin-left: 20px; }
-/* TODO CSS-D：padding、border 和 background 一起构成标题的盒模型与视觉层级。 */
+/* TODO CSS-D：观察并调整标题盒模型。
+ * padding: 8px 14px 表示上下内边距各 8px、左右内边距各 14px。
+ * border-left 是左边框；3px 是粗细，solid 是实线，最后一项是颜色。
+ * background 是元素背景色。三者共同让 h2 标题从正文中明显分层。
+ */
 h2 { font-size: 30px; padding: 8px 14px; border-left: 3px solid #b8a27d; background: #edf1ea; }
 h3, .skills-list strong { color: var(--subheading); }
 a { color: #42635b; }
-/* TODO CSS-C：margin 是栏目外部距离，padding 是边框内的距离。 */
+/* TODO CSS-C：调整栏目留白。
+ * margin-top: 32px 是当前栏目与上一个元素之间的外部距离。
+ * padding-top: 28px 是栏目上边框到栏目内容之间的内部距离。
+ * border-top 是 1px 粗的实线分隔线。可分别改数值，观察外部留白和内部留白的区别。
+ */
 .section { margin-top: 32px; padding-top: 28px; border-top: 1px solid #e1ddd3; }
 .experience-item, .research-item { margin-bottom: 24px; }
 .profile-details > div { margin: 12px 0; }
