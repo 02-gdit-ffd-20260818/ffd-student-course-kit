@@ -1,8 +1,10 @@
 /* 第 2 课独立任务文件：修改变量和间距后保存刷新。 */
 :root {
+  /* TODO CSS-A：标题颜色变量。改一处，所有使用 var(--heading) 的标题同步变化。 */
   --heading: #254a40;
   --subheading: #7c6348;
   --background: #fbfaf6;
+  /* TODO CSS-B：正文基础字号。修改后对比阅读舒适度，避免只追求“大”。 */
   --body-size: 19px;
 }
 
@@ -10,9 +12,11 @@ body { background: var(--background); font-size: var(--body-size); }
 h1, h2 { color: var(--heading); }
 h1 { font-size: 46px; }
 h1 span { font-size: 28px; margin-left: 20px; }
+/* TODO CSS-D：padding、border 和 background 一起构成标题的盒模型与视觉层级。 */
 h2 { font-size: 30px; padding: 8px 14px; border-left: 3px solid #b8a27d; background: #edf1ea; }
 h3, .skills-list strong { color: var(--subheading); }
 a { color: #42635b; }
+/* TODO CSS-C：margin 是栏目外部距离，padding 是边框内的距离。 */
 .section { margin-top: 32px; padding-top: 28px; border-top: 1px solid #e1ddd3; }
 .experience-item, .research-item { margin-bottom: 24px; }
 .profile-details > div { margin: 12px 0; }
