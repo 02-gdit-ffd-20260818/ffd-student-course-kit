@@ -50,7 +50,11 @@
   </header>
   <main id="main">
    <!-- TODO HTML-A：修改姓名、身份、学校与联系方式。
-        操作前是统一占位内容；操作后应能明确说明“这是谁”。 -->
+        section 表示一个有明确主题的页面区域；class="hero" 供 CSS 设置顶部视觉样式。
+        id="about" 是此区域在页面中的唯一名称，导航 href="#about" 会跳到这里。
+        h1 是本页最重要的一级标题；p 是普通段落；class 是给元素起的可复用样式名称。
+        只修改开始标签与结束标签之间的文字，不删除 <、>、引号或结束标签。
+        操作前是所有学生相同的占位内容；操作后顶部应能明确回答“这是谁、学什么、来自哪里”。 -->
    <section class="hero" id="about">
     <div class="container">
      <div class="hero-top">
@@ -69,7 +73,12 @@
        </p>
       </div>
       <div class="hero-visual">
-       <!-- TODO HTML-B：把图片放入 assets，再修改 src；alt 要说明图片内容。 -->
+       <!-- TODO HTML-B：把图片文件放入 assets 文件夹，再修改 img 的 src 和 alt。
+            img 是图片元素，不需要单独的结束标签；src 是 source（来源），填写相对当前 HTML 的图片路径。
+            例如 src="assets/zhangsan.jpg" 表示进入 assets 文件夹读取 zhangsan.jpg。
+            alt 是图片的文字替代说明，图片加载失败或使用屏幕阅读器时会用到，不能只写“图片”。
+            width 和 height 提前告诉浏览器图片比例，可减少加载时页面跳动；CSS 仍会控制实际显示大小。
+            操作前显示统一头像；操作后显示个人图片，并有准确的替代文字。 -->
        <figure>
         <img alt="个人头像占位图，请替换为自己的图片" height="220" src="assets/avatar.svg" width="220"/>
        </figure>
@@ -128,7 +137,11 @@
       </h2>
      </header>
      <div class="section-content">
-      <!-- TODO HTML-C：修改本条经历；复制整个 experience-item 可增加一条。 -->
+      <!-- TODO HTML-C：修改本条经历；需要增加经历时，复制完整的 experience-item div。
+           div 是通用内容容器；class="experience-item" 让多条经历共用同一套 CSS。
+           strong 表示内容重要，浏览器通常显示为粗体；time 表示时间信息；p 表示一段文字。
+           复制时必须从 <div class="experience-item"> 到对应的 </div> 一起复制，避免标签结构断裂。
+           操作前是示例学校和说明；操作后应显示学生自己的真实学习经历。 -->
       <div class="experience-item">
        <p class="experience-heading">
         <strong>
