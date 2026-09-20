@@ -284,3 +284,17 @@ git push -u origin main
 - 添加 `window.addEventListener('hashchange', updateNavigation);` 和 `updateNavigation();`。
 - 含义：事件监听器在网址 hash 改变时重新执行；最后一行保证首次打开也执行。
 - 操作后：点击、刷新、前进和后退都保持正确高亮。
+
+## 零基础 JavaScript 术语表
+
+- `const` 声明不重新赋值的变量；等号右边先计算，再把结果保存到左边变量。
+- `document.querySelectorAll('nav a')` 查找 `nav` 中的所有链接，返回一个可遍历的集合。
+- `function updateNavigation() { ... }` 是定义函数；定义只保存步骤，写 `updateNavigation()` 才是立即执行。
+- `forEach(function (link) { ... })` 对集合中的每个链接各执行一次；`link` 表示本轮处理的链接。
+- `window.location.hash` 是地址栏中从 `#` 开始的部分；`|| '#about'` 表示前者为空时使用默认值。
+- `===` 是严格相等比较，结果只有布尔值 `true` 或 `false`。
+- `classList.toggle('is-current', isCurrent)`：第二个参数为 true 时添加类，为 false 时删除类。
+- `setAttribute` 设置 HTML 属性，`removeAttribute` 删除属性；`aria-current` 帮助辅助技术识别当前位置。
+- `addEventListener('hashchange', updateNavigation)` 登记监听器，hash 改变后由浏览器调用函数；这里函数名后不加括号。
+- JavaScript 区分大小写，括号、引号、花括号和分号应按答案完整输入。
+
