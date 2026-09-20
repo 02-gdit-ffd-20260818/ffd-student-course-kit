@@ -270,3 +270,16 @@ git push -u origin main
 3. `renderWorks(works);`：操作前只定义函数却没有调用，作品区为空；该调用把数组传给渲染函数；操作后每个对象生成一张卡片。
 
 教师可临时把 `works` 改为空数组演示空状态，再恢复，帮助学生理解条件分支。
+
+## 零基础数据与 DOM 术语表
+
+- `work` 是当前作品对象；对象把一组相关数据放在一起，例如 `title`、`description`、`url`。
+- `work.title` 使用点号读取对象的 `title` 属性；点号可理解为“这个对象里面的”。
+- `document.createElement('h3')` 在内存中新建一个 h3 元素，此时它还没有显示到页面上。
+- `title.textContent = work.title`：右边读取数据，等号把数据赋给左边元素的纯文字内容。
+- `textContent` 按纯文字写入；即使数据含有 `<b>`，也会显示字符，不会把它当标签执行。
+- `append` 把元素放进父元素；只有接入页面 DOM 后，浏览器才会显示它。
+- `items.forEach(...)` 对数组中的每一个作品对象执行一次，因此一个对象生成一张卡片。
+- `DocumentFragment` 是临时容器，先在内存中装好全部卡片，再一次放入页面，减少反复更新页面。
+- `renderWorks(works)` 中，`renderWorks` 是函数名，`works` 是传入的数组，圆括号表示现在调用函数。
+
