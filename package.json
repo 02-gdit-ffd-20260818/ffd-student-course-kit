@@ -8,15 +8,15 @@
                 },
     "scripts":  {
                     "dev":  "vite",
-                    "dev:api":  "node --env-file-if-exists=.env --watch server/course-index.js",
-                    "start:api":  "node --env-file-if-exists=.env server/course-index.js",
+                    "dev:api":  "node --env-file-if-exists=.env --watch server/blog-index.js",
+                    "start:api":  "node --env-file-if-exists=.env server/blog-index.js",
                     "test:component":  "vitest run",
                     "build":  "vite build",
-                    "test:course":  "node --test tests/course.test.mjs tests/media.test.mjs",
-                    "setup:course":  "node scripts/setup-course.mjs",
-                    "test":  "npm run test:course \u0026\u0026 npm run test:component",
-                    "db:inspect":  "node --env-file-if-exists=.env scripts/inspect-course-db.mjs",
-                    "db:backup":  "node --env-file-if-exists=.env scripts/backup-course.mjs",
+                    "test:backend":  "node --test tests/backend.test.mjs tests/media.test.mjs",
+                    "setup:app":  "node scripts/setup-app.mjs",
+                    "test":  "npm run test:backend \u0026\u0026 npm run test:component",
+                    "db:inspect":  "node --env-file-if-exists=.env scripts/inspect-db.mjs",
+                    "db:backup":  "node --env-file-if-exists=.env scripts/backup-app.mjs",
                     "verify:live":  "node --env-file-if-exists=.env scripts/verify-live.mjs"
                 },
     "dependencies":  {

@@ -2,11 +2,11 @@ import { mkdirSync,existsSync,copyFileSync,readFileSync,readdirSync } from 'node
 import { dirname,resolve,basename,join } from 'node:path'
 import { createHash } from 'node:crypto'
 if(!process.argv.includes('--confirmed-stopped'))throw new Error('先在终端A按Ctrl+C停止后端，再运行 npm run db:backup -- --confirmed-stopped；完成后重新启动。')
-const source=resolve(process.env.DATABASE_PATH||'./var/course-blog.sqlite')
+const source=resolve(process.env.DATABASE_PATH||'./var/blog.sqlite')
 if(!existsSync(source))throw new Error('数据库还不存在，请先启动一次后端。')
 const backupRoot=resolve(process.env.BACKUP_PATH||join(dirname(source),'backups'));mkdirSync(backupRoot,{recursive:true})
-const stamp=new Date().toISOString().replace(/[:.]/g,'-'),bundle=join(backupRoot,'course-'+stamp),databaseDir=join(bundle,'database');mkdirSync(databaseDir,{recursive:true})
-const target=join(databaseDir,'course-blog.sqlite');copyFileSync(source,target)
+const stamp=new Date().toISOString().replace(/[:.]/g,'-'),bundle=join(backupRoot,'blog-'+stamp),databaseDir=join(bundle,'database');mkdirSync(databaseDir,{recursive:true})
+const target=join(databaseDir,'blog.sqlite');copyFileSync(source,target)
 console.log('1/4 数据库主文件已复制')
 if(existsSync(source+'-wal'))copyFileSync(source+'-wal',target+'-wal')
 console.log('2/4 WAL文件已处理')
