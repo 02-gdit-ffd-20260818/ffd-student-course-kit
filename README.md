@@ -1,4 +1,4 @@
-﻿# 项目 1 · 第 01 课课堂操作手册
+# 项目 1 · 第 01 课课堂操作手册
 
 ## HTML 内容与首次上线
 
@@ -36,6 +36,7 @@
 ### Windows CMD
 
 ```bat
+REM 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 cd /d "%USERPROFILE%\Desktop\web-work"
 git clone --branch p1-l01-standalone-v3.0 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git p1-lesson-01
 cd /d "p1-lesson-01"
@@ -46,6 +47,8 @@ git branch -M main
 ### Windows PowerShell
 
 ```powershell
+
+# 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'Desktop\web-work')
 git clone --branch p1-l01-standalone-v3.0 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git p1-lesson-01
 Set-Location -LiteralPath (Join-Path $env:USERPROFILE 'Desktop\web-work\p1-lesson-01')
@@ -75,9 +78,6 @@ git remote -v
 - 路线 B：`course` 指向教师模板仓库，`origin` 指向本课新仓库。
 
 这样既能继承学生上次作品，也能保证每次课的代码、提交和部署互不覆盖。
-
-
-
 
 ## 四、使用 Trae IDE
 
@@ -123,7 +123,6 @@ git remote -v
 
 运行截图、个人提交编号、线上网址（发布课）、一句代码解释。遇到故障写明命令、目录和完整错误，不只写“运行不了”。
 
-
 ## 六、保存、推送与部署
 
 在 Trae 内置终端先运行 `git status` 和 `git diff`。确认没有密码、临时文件和无关文件后：
@@ -163,6 +162,7 @@ GitHub Pages：`Settings → Pages → Deploy from a branch → main → /(root)
 CMD：
 
 ```bat
+REM 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 mkdir "%USERPROFILE%\Desktop\web-work" 2>nul
 cd /d "%USERPROFILE%\Desktop\web-work"
 dir
@@ -171,6 +171,8 @@ dir
 PowerShell 或 Trae 终端：
 
 ```powershell
+
+# 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\Desktop\web-work"
 Set-Location "$env:USERPROFILE\Desktop\web-work"
 Get-Location
@@ -187,6 +189,8 @@ Get-Location
 ### 克隆命令
 
 ```bash
+
+# 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 git clone --branch 本课分支 --single-branch 仓库网址 本课文件夹
 ```
 
@@ -198,6 +202,8 @@ git clone --branch 本课分支 --single-branch 仓库网址 本课文件夹
 ### 统一启动命令
 
 ```bash
+
+# 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 npx live-server --port=7000 --host=0.0.0.0
 ```
 
@@ -210,6 +216,8 @@ npx live-server --port=7000 --host=0.0.0.0
 ### Git 提交命令
 
 ```bash
+
+# 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 git remote -v
 git status
 git add .
@@ -228,6 +236,8 @@ git push
 从教师模板开始的学生先在 GitHub 或 Gitee 建立空仓库，再执行：
 
 ```bash
+
+# 按从上到下的顺序执行；每条命令的具体作用结合本节文字说明理解。
 git remote rename origin teacher
 git remote add origin <自己的空仓库网址>
 git branch -M main
@@ -235,6 +245,7 @@ git push -u origin main
 ```
 
 `rename` 保留教师地址供查看；`add origin` 把默认推送目标改成学生自己的仓库；`-u` 建立后续默认跟踪关系。
+
 ## 本课任务点的前后变化与代码解释
 
 ### 任务点1：姓名和身份
@@ -270,4 +281,3 @@ git push -u origin main
 - `<a href="网址">`：`a` 是链接元素，`href` 是点击后打开的目标；完整外部网址应从 `https://` 开始。
 - `<div>`：通用容器，本身不说明内容含义，主要用于分组和布局。
 - 修改原则：只替换文字和属性值，不删除尖括号、引号及成对的结束标签；每完成一处就保存并刷新检查。
-
