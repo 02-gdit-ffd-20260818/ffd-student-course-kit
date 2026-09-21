@@ -1,4 +1,4 @@
-﻿import { mkdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { seedArticles } from './data/seedArticles.js'
 import { hashPassword } from './services/auth.js'
@@ -16,8 +16,11 @@ export async function openBlogDb(env = process.env) {
   const { DatabaseSync } = await import('node:sqlite')
   const databasePath = env.DATABASE_PATH || './var/blog.sqlite'
   if (databasePath !== ':memory:') mkdirSync(dirname(resolve(databasePath)), { recursive: true })
+  // SQLite 把完整数据库保存在一个文件中；部署时由 DATABASE_PATH 指向持久化目录。
   const database = new DatabaseSync(databasePath)
+  // foreign_keys 启用外键；WAL 改善读写并发；busy_timeout 给短暂锁等待时间。
   database.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000')
+  // 业务代码统一写 $1、$2 占位符；这里转换为 SQLite 接受的 ? 并绑定参数。
   const query = async (sql, params = []) => database.prepare(sql.replace(/\$\d+/g, '?')).all(...params)
   for (const sql of schema) await query(sql)
 
