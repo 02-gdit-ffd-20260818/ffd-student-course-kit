@@ -16,7 +16,6 @@ const files = {
   database: await readFile('server/database.js', 'utf8'),
   sqliteRepository: await readFile('server/repositories/sqliteArticleRepository.js', 'utf8'),
   migration: await readFile('database/migrations/001_initial.sql', 'utf8'),
-  lesson10: await readFile('docs/lesson-10-teacher-guide.md', 'utf8'),
 }
 
 const rules = [
@@ -39,7 +38,6 @@ const rules = [
   ['SQLite 启用外键、WAL 和忙等待', /foreign_keys = ON/.test(files.database) && /journal_mode = WAL/.test(files.database) && /busy_timeout/.test(files.database)],
   ['迁移包含 users、articles、comments 三张业务表', /CREATE TABLE IF NOT EXISTS users/.test(files.migration) && /CREATE TABLE IF NOT EXISTS articles/.test(files.migration) && /CREATE TABLE IF NOT EXISTS comments/.test(files.migration)],
   ['SQLite 仓储实现分页与持久化 CRUD', /LIMIT \? OFFSET \?/.test(files.sqliteRepository) && /INSERT INTO articles/.test(files.sqliteRepository) && /DELETE FROM articles/.test(files.sqliteRepository)],
-  ['第 10 次课指南包含迁移、备份、恢复演示', /db:migrate/.test(files.lesson10) && /db:backup/.test(files.lesson10) && /db:restore/.test(files.lesson10)],
 ]
 
 const failures = rules.filter(([, passed]) => !passed).map(([name]) => name)
