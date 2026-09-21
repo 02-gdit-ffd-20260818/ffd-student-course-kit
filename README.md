@@ -1,17 +1,32 @@
-# 第9课学生模板｜文章评论与SQLite关联
+﻿# 第09课｜文章评论与 SQLite 关联
 
-本课从完整SQLite工程开始，缺课也可直接克隆。
+这是可独立启动的完整工程。缺课学生可直接克隆本课分支；已有个人项目的学生可按实操手册继续开发。
 
-- 课前：文章可保存，但读者不能参与讨论
-- 课后：登录用户可发表评论、刷新后仍存在；评论显示作者和时间
-- TODO 1：发表一条评论并用JOIN查询作者昵称
-- TODO 2：解释article_id和user_id为什么必须是外键
-- 重点文件：src/components/ArticleComments.vue；server/course-app.js；course_comments表；course_users表
+- 操作前：文章可保存，但读者不能参与讨论。
+- 操作后：登录用户可以评论，刷新与重启后仍保留。
+- 核心知识：comments 表、外键、JOIN、一对多关系。
+- 重点文件：src/components/ArticleComments.vue；server/blog-app.js；server/blog-db.js。
 
-启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。
-## 账号说明
+## 启动
 
-- 普通用户：在注册页面创建，角色固定为 `reader`。
-- 管理员：运行 `node tools/prepare-env.mjs` 后，用户名是 `teacher`，随机密码在本机 `.env` 的 `ADMIN_PASSWORD`。
-- `.env`、`var`、`node_modules` 不提交Git。
-- 本地数据库：`var/course-blog.sqlite`；公网数据库由服务器 `.env` 的 `DATABASE_PATH` 指定。
+```cmd
+npm install
+node tools/prepare-env.mjs
+npm run dev:api
+```
+
+另开一个 Trae 终端：
+
+```cmd
+npm run dev -- --host 0.0.0.0
+```
+
+网页：`http://localhost:5173`；后端健康检查：`http://localhost:3000/health`。
+
+## 账号与数据
+
+- 普通用户在注册页创建，角色固定为 `reader`。
+- 管理员用户名固定为 `admin`；随机密码在本机 `.env` 的 `ADMIN_PASSWORD`。
+- SQLite 文件是 `var/blog.sqlite`。
+- `.env`、`var`、`node_modules` 不提交到 Git。
+- 详细开发、验证、提交和部署步骤见 `实操手册/lesson-09_统一实操.md`。

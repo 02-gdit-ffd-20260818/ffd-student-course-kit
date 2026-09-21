@@ -1,4 +1,4 @@
-import test from 'node:test'
+﻿import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createApp } from '../server/app.js'
 import { createMemoryArticleRepository } from '../server/repositories/memoryArticleRepository.js'
@@ -7,9 +7,9 @@ import { createAccessToken, hashPassword } from '../server/services/auth.js'
 const seed = [{ id: 1, slug: 'one', title: '第一篇', summary: '摘要', content: ['正文'], tags: ['Vue'], status: 'published', author: '林晓', publishedAt: '2026-09-01' }]
 const validInput = { title: '新文章', summary: '新摘要', content: ['正文'], tags: ['REST'], status: 'draft' }
 const testSecret = 'test-session-secret-at-least-32-characters'
-const credentials = { username: 'teacher', password: 'classroom-password-123' }
+const credentials = { username: 'admin', password: 'platform-password-123' }
 const passwordRecord = hashPassword(credentials.password, '00112233445566778899aabbccddeeff')
-const admin = { id: 1, username: credentials.username, displayName: '教师', role: 'admin', passwordSalt: passwordRecord.salt, passwordHash: passwordRecord.hash }
+const admin = { id: 1, username: credentials.username, displayName: '系统管理员', role: 'admin', passwordSalt: passwordRecord.salt, passwordHash: passwordRecord.hash }
 
 async function withApi(run) {
   const app = createApp({ repository: createMemoryArticleRepository(seed), userRepository: { findByUsername: async (username) => username === admin.username ? admin : null }, tokenSecret: testSecret, logger: { info() {}, error() {} } })
