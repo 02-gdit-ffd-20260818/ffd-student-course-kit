@@ -9,11 +9,11 @@ node_bundler="esbuild"
 external_node_modules=["@netlify/database"]
 [[redirects]]
 from="/api/*"
-to="/.netlify/functions/course/api/:splat"
+to="/.netlify/functions/api/api/:splat"
 status=200
 [[redirects]]
 from="/health"
-to="/.netlify/functions/course/health"
+to="/.netlify/functions/api/health"
 status=200
 [[redirects]]
 from="/*"
