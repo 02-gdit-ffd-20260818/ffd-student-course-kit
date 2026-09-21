@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { loginRequest } from '../services/authApi.js'
+import { loginRequest, registerRequest } from '../services/authApi.js'
 import { clearAuthSession, readAuthSession, saveAuthSession } from '../services/authSession.js'
 
 export const useAuthStore = defineStore('auth', {
@@ -23,6 +23,7 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
     },
+    register(credentials) { return this.login(credentials, registerRequest) },
     logout() {
       clearAuthSession()
       this.session = null

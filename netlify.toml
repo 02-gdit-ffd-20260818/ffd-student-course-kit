@@ -1,9 +1,21 @@
 [build]
-command = "npm run build"
-publish = "dist"
+command="npm run build"
+publish="dist"
 [build.environment]
-NODE_VERSION = "24"
+NODE_VERSION="24"
+[functions]
+directory="netlify/functions"
+node_bundler="esbuild"
+external_node_modules=["@netlify/database"]
 [[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+from="/api/*"
+to="/.netlify/functions/course/api/:splat"
+status=200
+[[redirects]]
+from="/health"
+to="/.netlify/functions/course/health"
+status=200
+[[redirects]]
+from="/*"
+to="/index.html"
+status=200

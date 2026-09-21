@@ -30,13 +30,11 @@ export function verifyAccessToken(token, secret, now = Date.now()) {
   if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null
   try {
     const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
-    // TODO-A：恢复有效令牌判断
-    return null
+    return claims.exp > Math.floor(now / 1000) ? claims : null
   } catch { return null }
 }
 
 export function readBearerToken(header = '') {
   const match = /^Bearer\s+(.+)$/i.exec(header)
-  // TODO-B：提取 Bearer 令牌
-  return ''
+  return match?.[1] || ''
 }

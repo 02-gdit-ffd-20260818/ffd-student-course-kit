@@ -1,3 +1,4 @@
+import { validateMedia } from '../shared/media.js'
 import { normalizeArticles } from './articleService.js'
 
 export function validateArticle(input) {
@@ -9,6 +10,7 @@ export function validateArticle(input) {
   if (!summary) errors.summary = '摘要不能为空'
   else if (summary.length > 160) errors.summary = '摘要不能超过 160 个字符'
   if (!['draft', 'published'].includes(input.status)) errors.status = '文章状态无效'
+  const mediaError=validateMedia(input.media);if(mediaError)errors.media=mediaError
   return errors
 }
 

@@ -6,8 +6,9 @@ import ArticleView from './views/ArticleView.vue'
 import HomeView from './views/HomeView.vue'
 import NotFoundView from './views/NotFoundView.vue'
 import PreviewView from './views/PreviewView.vue'
+import RegisterView from './views/RegisterView.vue'
 import LoginView from './views/LoginView.vue'
-import { getAccessToken } from './services/authSession.js'
+import { getAccessToken, readAuthSession } from './services/authSession.js'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,6 +17,7 @@ const router = createRouter({
     { path: '/tags/:tag', name: 'tag', component: HomeView, props: true },
     { path: '/articles/:slug', name: 'article', component: ArticleView, props: true },
     { path: '/about', name: 'about', component: AboutView },
+    { path: '/register', name: 'register', component: RegisterView },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/admin/articles', name: 'admin-articles', component: AdminArticlesView, meta: { requiresAuth: true } },
     { path: '/admin/articles/new', name: 'article-new', component: ArticleFormView, meta: { requiresAuth: true } },
@@ -25,6 +27,6 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => to.meta.requiresAuth && !getAccessToken() ? { name: 'login', query: { redirect: to.fullPath } } : true)
+router.beforeEach(to => { if(!to.meta.requiresAuth)return true; if(!getAccessToken())return {name:'login',query:{redirect:to.fullPath}};return readAuthSession()?.user?.role==='admin'?true:{name:'home'} })
 
 export default router
