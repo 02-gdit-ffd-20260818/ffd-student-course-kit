@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
+﻿import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { backup, DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
@@ -53,7 +53,7 @@ export function seedDatabase(database) {
   return database.prepare('SELECT COUNT(*) AS count FROM articles').get().count
 }
 
-export function seedAdmin(database, { username, password, displayName = '课程管理员' }) {
+export function seedAdmin(database, { username, password, displayName = '系统管理员' }) {
   if (!username || !password) return null
   const { salt, hash } = hashPassword(password)
   return createSqliteUserRepository(database).upsert({ username, displayName, role: 'admin', passwordSalt: salt, passwordHash: hash })

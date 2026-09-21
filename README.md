@@ -1,17 +1,32 @@
-# 第7课学生模板｜注册、登录与SQLite用户表
+﻿# 第07课｜注册、登录与 SQLite 用户表
 
-本课从完整SQLite工程开始，缺课也可直接克隆。
+这是可独立启动的完整工程。缺课学生可直接克隆本课分支；已有个人项目的学生可按实操手册继续开发。
 
-- 课前：只能匿名阅读，不知道访问者是谁
-- 课后：可以注册、登录、退出；账号写入SQLite，刷新和重启后仍可登录
-- TODO 1：观察 course_users 表及 username UNIQUE，解释为什么不能保存明文密码
-- TODO 2：用浏览器Network追踪注册和登录请求，分别验证201、409和401
-- 重点文件：server/course-db.js；server/course-app.js；server/services/auth.js；src/views/RegisterView.vue；src/views/LoginView.vue；src/stores/auth.js
+- 操作前：匿名访客只能阅读。
+- 操作后：普通用户可以注册登录；管理员账号由环境变量创建。
+- 核心知识：users 表、密码盐与摘要、令牌、reader/admin 角色。
+- 重点文件：server/blog-db.js；server/blog-app.js；server/services/auth.js；src/views/RegisterView.vue；src/views/LoginView.vue。
 
-启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。
-## 账号说明
+## 启动
 
-- 普通用户：在注册页面创建，角色固定为 `reader`。
-- 管理员：运行 `node tools/prepare-env.mjs` 后，用户名是 `teacher`，随机密码在本机 `.env` 的 `ADMIN_PASSWORD`。
-- `.env`、`var`、`node_modules` 不提交Git。
-- 本地数据库：`var/course-blog.sqlite`；公网数据库由服务器 `.env` 的 `DATABASE_PATH` 指定。
+```cmd
+npm install
+node tools/prepare-env.mjs
+npm run dev:api
+```
+
+另开一个 Trae 终端：
+
+```cmd
+npm run dev -- --host 0.0.0.0
+```
+
+网页：`http://localhost:5173`；后端健康检查：`http://localhost:3000/health`。
+
+## 账号与数据
+
+- 普通用户在注册页创建，角色固定为 `reader`。
+- 管理员用户名固定为 `admin`；随机密码在本机 `.env` 的 `ADMIN_PASSWORD`。
+- SQLite 文件是 `var/blog.sqlite`。
+- `.env`、`var`、`node_modules` 不提交到 Git。
+- 详细开发、验证、提交和部署步骤见 `实操手册/lesson-07_统一实操.md`。

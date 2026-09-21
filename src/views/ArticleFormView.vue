@@ -56,7 +56,7 @@ async function submit() {
         <p>可填本站资源路径或HTTPS链接，也可以上传本机文件。先做一张图片，再加入音频和视频。</p>
         <section v-for="(item,index) in form.media" :key="index" class="media-edit-row">
           <label class="field">媒体类型<select v-model="item.type"><option value="image">图片</option><option value="audio">音乐 / 音频</option><option value="video">视频</option></select></label>
-          <label class="field">资源地址<input v-model.trim="item.url" placeholder="/media/course-diagram.png 或 https://…" /></label>
+          <label class="field">资源地址<input v-model.trim="item.url" placeholder="/media/architecture-diagram.png 或 https://…" /></label>
           <label class="field">上传文件<input type="file" accept=".png,.jpg,.jpeg,.webp,.mp3,.wav,.ogg,.mp4,.webm" :disabled="uploading" @change="upload($event,item)" /></label>
           <label v-if="item.type==='image'" class="field">图片替代文字<input v-model.trim="item.alt" maxlength="200" /></label>
           <label class="field">媒体说明<input v-model.trim="item.caption" maxlength="200" /></label>
