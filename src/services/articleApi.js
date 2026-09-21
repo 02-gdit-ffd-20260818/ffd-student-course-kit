@@ -1,9 +1,15 @@
-const apiBase = String(import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '')
+import { getAccessToken } from './authSession.js'
+import { apiUrl } from './apiBase.js'
 
 async function request(path, options = {}, fetcher = fetch) {
-  const response = await fetcher(`${apiBase}${path}`, {
+  if (import.meta.env.VITE_PUBLIC_PREVIEW === '1') {
+    if(path==='/api/articles' && !options.method){ const response=await fetcher(import.meta.env.BASE_URL+'articles.json');if(!response.ok)throw new Error('预览文章无法加载');return response.json() }
+    throw new Error('在线写入尚未接通，请运行本机完整工程。')
+  }
+  const token = getAccessToken()
+  const response = await fetcher(apiUrl(path), {
     ...options,
-    headers: { 'content-type': 'application/json', ...options.headers },
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...options.headers },
   })
   if (response.status === 204) return null
   const body = await response.json().catch(() => ({}))

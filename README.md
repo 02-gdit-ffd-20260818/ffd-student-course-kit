@@ -1,25 +1,11 @@
-﻿# 第09课学生起步：Express API
+# 第9课学生模板｜文章评论与SQLite关联
 
-本目录是可以独立运行的课堂模板。缺课或上次项目不可用时，直接克隆 lesson-09 分支从零开始。
+本课从完整SQLite工程开始，缺课也可直接克隆。
 
-## 桌面领取
+- 课前：文章可保存，但读者不能参与讨论
+- 课后：登录用户可发表评论、刷新后仍存在；评论显示作者和时间
+- TODO 1：发表一条评论并用JOIN查询作者昵称
+- TODO 2：解释article_id和user_id为什么必须是外键
+- 重点文件：src/components/ArticleComments.vue；server/course-app.js；course_comments表；course_users表
 
-```bat
-cd /d "%USERPROFILE%\Desktop"
-if not exist web-work mkdir web-work
-cd web-work
-if not exist p2-blog mkdir p2-blog
-cd p2-blog
-git clone --branch lesson-09 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git lesson-09
-cd lesson-09
-npm.cmd ci
-```
-
-在Trae IDE中打开本文件夹。第07—08课只启动网页；第09—11课还需要启动Express API。
-
-## 本课两个TODO
-
-1. 服务端拒绝空标题。
-2. 规范化标签数组。
-
-主要修改文件：`server/services/articleInput.js`。完整步骤、答案解释、测试、Git提交和部署方法看教师发放的本课《统一实操手册》。
+启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。

@@ -3,7 +3,15 @@ export function createMemoryArticleRepository(seed = []) {
   let nextId = Math.max(0, ...articles.map((item) => item.id)) + 1
 
   return {
-    list() { return structuredClone(articles) },
+    list({ status, query = '', page = 1, pageSize = 20 } = {}) {
+      const normalizedQuery = query.toLocaleLowerCase('zh-CN')
+      const filtered = articles.filter((item) => {
+        if (status && item.status !== status) return false
+        return !normalizedQuery || `${item.title} ${item.summary} ${item.tags.join(' ')}`.toLocaleLowerCase('zh-CN').includes(normalizedQuery)
+      })
+      const offset = (page - 1) * pageSize
+      return { items: structuredClone(filtered.slice(offset, offset + pageSize)), total: filtered.length }
+    },
     find(id) { return structuredClone(articles.find((item) => item.id === Number(id)) ?? null) },
     create(input) {
       const article = { ...structuredClone(input), id: nextId++ }

@@ -18,6 +18,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid #d58b36; outline-offs
 .site-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.4rem 0; border-bottom: 1px solid #cbc4b5; }
 .brand { color: #20231f; font-family: Georgia, "Songti SC", serif; font-size: 1.45rem; font-weight: 700; text-decoration: none; }
 nav { display: flex; gap: 1rem; }
+.auth-summary { display: inline-flex; align-items: center; gap: 0.4rem; }
+.auth-summary button { border: 0; padding: 0; color: #315f53; background: transparent; cursor: pointer; text-decoration: underline; }
 nav a.router-link-active { font-weight: 700; }
 .main-content { min-height: 75vh; padding: 4rem 0; }
 .section-heading { margin-bottom: 2rem; }
@@ -43,6 +45,7 @@ h1 { margin: 0.3rem 0; font-size: clamp(2rem, 5vw, 4rem); }
 .status-badge { margin-left: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 999px; background: #e6e0d4; font-size: 0.8rem; }
 .button-link, form button, .admin-row button { display: inline-block; border: 0; border-radius: 0.5rem; padding: 0.55rem 0.9rem; color: #fff; background: #315f53; cursor: pointer; text-decoration: none; }
 .form-card { max-width: 50rem; margin: 0 auto; }
+.login-card { max-width: 30rem; }
 .field { display: grid; gap: 0.35rem; margin: 1rem 0; font-weight: 700; }
 .field input, .field textarea, .field select { width: 100%; border: 1px solid #9b9283; border-radius: 0.4rem; padding: 0.65rem; background: #fff; }
 .field-error { color: #a12e22; font-size: 0.9rem; }

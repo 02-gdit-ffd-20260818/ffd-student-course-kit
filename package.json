@@ -1,30 +1,35 @@
 {
-  "name": "ffd-p2-blog",
-  "version": "2.0.0",
-  "private": true,
-  "type": "module",
-  "engines": {
-    "node": ">=24"
-  },
-  "scripts": {
-    "dev": "vite",
-    "dev:api": "node --env-file-if-exists=.env --watch server/index.js",
-    "start:api": "node --env-file-if-exists=.env server/index.js",
-    "check": "node scripts/check-project.mjs",
-    "test:unit": "node --test tests/*.test.mjs",
-    "test:component": "vitest run",
-    "test": "npm run test:unit && npm run test:component",
-    "build": "vite build"
-  },
-  "dependencies": {
-    "express": "^5.1.0",
-    "pinia": "^3.0.0",
-    "vue": "^3.5.0",
-    "vue-router": "^4.5.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.0",
-    "vite": "^7.0.0",
-    "vitest": "^3.0.0"
-  }
+    "name":  "ffd-p2-blog",
+    "version":  "3.3.0",
+    "private":  true,
+    "type":  "module",
+    "engines":  {
+                    "node":  "\u003e=24"
+                },
+    "scripts":  {
+                    "dev":  "vite",
+                    "dev:api":  "node --env-file-if-exists=.env --watch server/course-index.js",
+                    "start:api":  "node --env-file-if-exists=.env server/course-index.js",
+                    "test:component":  "vitest run",
+                    "build":  "vite build",
+                    "test:course":  "node --test tests/course.test.mjs tests/media.test.mjs",
+                    "setup:course":  "node scripts/setup-course.mjs",
+                    "test":  "npm run test:course \u0026\u0026 npm run test:component",
+                    "db:inspect":  "node --env-file-if-exists=.env scripts/inspect-course-db.mjs",
+                    "db:backup":  "node --env-file-if-exists=.env scripts/backup-course.mjs",
+                    "verify:live":  "node --env-file-if-exists=.env scripts/verify-live.mjs"
+                },
+    "dependencies":  {
+                         "express":  "^5.1.0",
+                         "multer":  "^2.4.0",
+                         "pinia":  "^3.0.0",
+                         "serverless-http":  "latest",
+                         "vue":  "^3.5.0",
+                         "vue-router":  "^4.5.0"
+                     },
+    "devDependencies":  {
+                            "@vitejs/plugin-vue":  "^6.0.0",
+                            "vite":  "^7.0.0",
+                            "vitest":  "^3.0.0"
+                        }
 }
