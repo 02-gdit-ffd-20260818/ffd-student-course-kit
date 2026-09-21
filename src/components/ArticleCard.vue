@@ -7,12 +7,12 @@ defineEmits(['open', 'filter-tag'])
   <article class="article-card">
     <p class="article-meta">{{ article.publishedAt }} · {{ article.author }}</p>
     <h2>{{ article.title }}</h2>
-    <p>{{ article.summary }}</p>
+    <p>{{ "请填写摘要" }}<!-- TODO-A：显示摘要 --></p>
     <ul class="tag-list" aria-label="文章标签">
       <li v-for="tag in article.tags" :key="tag">
         <button class="tag" type="button" @click="$emit('filter-tag', tag)">{{ tag }}</button>
       </li>
     </ul>
-    <button class="text-link" type="button" @click="$emit('open', article.slug)">阅读全文<span class="sr-only">：{{ article.title }}</span></button>
+    <button class="text-link" type="button" @click="void 0" data-task="TODO-B">阅读全文<span class="sr-only">：{{ article.title }}</span></button>
   </article>
 </template>
