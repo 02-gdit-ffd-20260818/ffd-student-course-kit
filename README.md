@@ -1,25 +1,11 @@
-﻿# 第11课学生起步：登录评论与部署
+# 第11课学生模板｜媒体内容、备份与Ubuntu部署
 
-本目录是可以独立运行的课堂模板。缺课或上次项目不可用时，直接克隆 lesson-11 分支从零开始。
+本课从完整SQLite工程开始，缺课也可直接克隆。
 
-## 桌面领取
+- 课前：本机SQLite博客功能完整，但还不能稳定公开访问
+- 课后：图片/音频/视频可访问，SQLite可备份恢复，网站和API公网可用
+- TODO 1：上传三类媒体并验证视频Range返回206
+- TODO 2：执行部署前备份、服务重启、部署后持久化检查
+- 重点文件：server/media-upload.js；ArticleFormView.vue；database/backup.mjs；Ubuntu部署实操.md；scripts/verify-live.mjs
 
-```bat
-cd /d "%USERPROFILE%\Desktop"
-if not exist web-work mkdir web-work
-cd web-work
-if not exist p2-blog mkdir p2-blog
-cd p2-blog
-git clone --branch lesson-11 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git lesson-11
-cd lesson-11
-npm.cmd ci
-```
-
-在Trae IDE中打开本文件夹。第07—08课只启动网页；第09—11课还需要启动Express API。
-
-## 本课两个TODO
-
-1. 判断令牌是否有效。
-2. 提取Bearer令牌。
-
-主要修改文件：`src/services/authSession.js`。完整步骤、答案解释、测试、Git提交和部署方法看教师发放的本课《统一实操手册》。
+启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。
