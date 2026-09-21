@@ -3,6 +3,8 @@ import { dirname, resolve } from 'node:path'
 import { backup, DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 import { seedArticles } from './data/seedArticles.js'
+import { createSqliteUserRepository } from './repositories/sqliteUserRepository.js'
+import { hashPassword } from './services/auth.js'
 
 const migrationsDirectory = fileURLToPath(new URL('../database/migrations', import.meta.url))
 
@@ -49,6 +51,12 @@ export function seedDatabase(database) {
     insert.run(article.id, article.slug, article.title, article.summary, JSON.stringify(article.content), JSON.stringify(article.tags), article.status, article.author, article.publishedAt)
   }
   return database.prepare('SELECT COUNT(*) AS count FROM articles').get().count
+}
+
+export function seedAdmin(database, { username, password, displayName = '课程管理员' }) {
+  if (!username || !password) return null
+  const { salt, hash } = hashPassword(password)
+  return createSqliteUserRepository(database).upsert({ username, displayName, role: 'admin', passwordSalt: salt, passwordHash: hash })
 }
 
 export async function backupDatabase(database, destination) {

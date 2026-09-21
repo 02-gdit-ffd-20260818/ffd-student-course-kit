@@ -24,3 +24,19 @@ test('前端 API 客户端保留状态码和字段错误', async () => {
     (error) => error.status === 400 && error.fields.title === 'title required',
   )
 })
+
+test('登录后写请求自动携带 Bearer 令牌', async () => {
+  globalThis.sessionStorage = {
+    getItem: () => JSON.stringify({ token: 'signed-token' }),
+    setItem() {},
+    removeItem() {},
+  }
+  let authorization
+  try {
+    await articleApi.create({ title: '文章' }, async (url, options) => {
+      authorization = options.headers.authorization
+      return { ok: true, status: 201, json: async () => ({ data: { id: 2 } }) }
+    })
+    assert.equal(authorization, 'Bearer signed-token')
+  } finally { delete globalThis.sessionStorage }
+})

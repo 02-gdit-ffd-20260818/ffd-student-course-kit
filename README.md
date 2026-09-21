@@ -1,25 +1,11 @@
-﻿# 第10课学生起步：SQLite数据库
+# 第10课学生模板｜权限控制与安全边界
 
-本目录是可以独立运行的课堂模板。缺课或上次项目不可用时，直接克隆 lesson-10 分支从零开始。
+本课从完整SQLite工程开始，缺课也可直接克隆。
 
-## 桌面领取
+- 课前：功能可用，但不能证明谁能修改或删除什么
+- 课后：匿名写入返回401；越权返回403；本人可删自己的评论；管理员可管理文章
+- TODO 1：分别制造401和403并在Network中解释差异
+- TODO 2：用两个普通账号验证甲不能删除乙的评论
+- 重点文件：server/course-app.js中的signed/admin；src/router.js；ArticleComments.vue；tests/api.test.mjs
 
-```bat
-cd /d "%USERPROFILE%\Desktop"
-if not exist web-work mkdir web-work
-cd web-work
-if not exist p2-blog mkdir p2-blog
-cd p2-blog
-git clone --branch lesson-10 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git lesson-10
-cd lesson-10
-npm.cmd ci
-```
-
-在Trae IDE中打开本文件夹。第07—08课只启动网页；第09—11课还需要启动Express API。
-
-## 本课两个TODO
-
-1. 查询已发布文章。
-2. 按状态统计文章。
-
-主要修改文件：`database/classroom-query.mjs`。完整步骤、答案解释、测试、Git提交和部署方法看教师发放的本课《统一实操手册》。
+启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。
