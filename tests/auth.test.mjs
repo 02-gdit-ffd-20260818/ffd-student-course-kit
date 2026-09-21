@@ -12,7 +12,7 @@ test('scrypt 密码哈希使用 salt 且可验证', () => {
 })
 
 test('访问令牌可验证且篡改后失效', () => {
-  const user = { id: 7, username: 'teacher', role: 'admin' }
+  const user = { id: 7, username: 'admin', role: 'admin' }
   const token = createAccessToken(user, secret, 1_000_000)
   assert.equal(verifyAccessToken(token, secret, 1_000_001).sub, 7)
   assert.equal(verifyAccessToken(`${token}x`, secret, 1_000_001), null)

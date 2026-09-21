@@ -11,7 +11,7 @@ async function request(path,method='GET',data,token){
  assert.ok(res.status===204||res.headers.get('content-type')?.includes('application/json'),'接口返回了非JSON内容，请检查/api代理')
  return {status:res.status,body:res.status===204?null:await res.json()}
 }
-const health=await request('/health');assert.equal(health.status,200);assert.equal(health.body.ok,true);assert.equal(health.body.database,'SQLite');assert.equal(health.body.project,'P2课程博客v3.3')
+const health=await request('/health');assert.equal(health.status,200);assert.equal(health.body.ok,true);assert.equal(health.body.database,'SQLite');assert.equal(health.body.project,'P2内容发布平台v4.0')
 async function begin(){
  const password=randomBytes(24).toString('base64url'),suffix=randomBytes(5).toString('hex')
  const create=await request('/api/auth/register','POST',{username:'verify_'+suffix,displayName:'部署验收同学',password});assert.equal(create.status,201);assert.equal(create.body.data.user.role,'reader')
@@ -22,7 +22,7 @@ async function begin(){
  const body='部署持久化验收 '+suffix,comment=await request('/api/articles/'+article.id+'/comments','POST',{body},token);assert.equal(comment.status,201)
  const other=await request('/api/auth/register','POST',{username:'other_'+suffix,displayName:'权限验收同学',password});assert.equal(other.status,201)
  assert.equal((await request('/api/comments/'+comment.body.data.id,'DELETE',undefined,other.body.data.token)).status,403)
- for(const [url,mime] of [['/media/course-diagram.png','image/png'],['/media/learning-notes.wav','audio/'],['/media/comment-flow.mp4','video/mp4']]){
+ for(const [url,mime] of [['/media/architecture-diagram.png','image/png'],['/media/learning-notes.wav','audio/'],['/media/comment-flow.mp4','video/mp4']]){
   const res=await fetch(mediaBase+url,{signal:AbortSignal.timeout(15000)});assert.equal(res.status,200);assert.ok(res.headers.get('content-type')?.startsWith(mime));assert.ok((await res.arrayBuffer()).byteLength>1000)
  }
  const range=await fetch(mediaBase+'/media/comment-flow.mp4',{headers:{Range:'bytes=0-99'},signal:AbortSignal.timeout(15000)});assert.equal(range.status,206);assert.equal((await range.arrayBuffer()).byteLength,100)

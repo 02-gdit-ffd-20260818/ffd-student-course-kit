@@ -1,4 +1,4 @@
-import { computed, onMounted } from 'vue'
+﻿import { computed, onMounted } from 'vue'
 import { useArticleStore } from '../stores/articles.js'
 
 export function useArticles() {
@@ -10,7 +10,7 @@ export function useArticles() {
     const params = new URLSearchParams(window.location.search)
     if (params.has('fail')) {
       store.status = 'error'
-      store.errorMessage = 'HTTP 503（课堂模拟）'
+      store.errorMessage = 'HTTP 503（故障模拟）'
       return
     }
     if (params.has('empty')) {

@@ -1,17 +1,32 @@
-# 第8课学生模板｜文章保存与SQLite文章表
+﻿# 第08课｜文章保存与 SQLite 文章表
 
-本课从完整SQLite工程开始，缺课也可直接克隆。
+这是可独立启动的完整工程。缺课学生可直接克隆本课分支；已有个人项目的学生可按实操手册继续开发。
 
-- 课前：可以登录，但文章只适合阅读
-- 课后：教师账号可新建、修改、发布文章；刷新和重启后文章仍存在
-- TODO 1：跟踪表单对象如何转换成JSON请求以及服务端如何校验
-- TODO 2：新增文章后查询SQLite，再重启API确认文章仍存在
-- 重点文件：src/views/ArticleFormView.vue；src/services/articleApi.js；server/services/articleInput.js；server/course-app.js；course_articles表
+- 操作前：用户可以登录，但文章管理闭环尚未建立。
+- 操作后：管理员可以新增、修改、发布文章，重启后数据仍保留。
+- 核心知识：articles 表、REST、参数化 SQL、JSON 字段。
+- 重点文件：src/views/ArticleFormView.vue；src/services/articleApi.js；server/services/articleInput.js；server/blog-app.js。
 
-启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。
-## 账号说明
+## 启动
 
-- 普通用户：在注册页面创建，角色固定为 `reader`。
-- 管理员：运行 `node tools/prepare-env.mjs` 后，用户名是 `teacher`，随机密码在本机 `.env` 的 `ADMIN_PASSWORD`。
-- `.env`、`var`、`node_modules` 不提交Git。
-- 本地数据库：`var/course-blog.sqlite`；公网数据库由服务器 `.env` 的 `DATABASE_PATH` 指定。
+```cmd
+npm install
+node tools/prepare-env.mjs
+npm run dev:api
+```
+
+另开一个 Trae 终端：
+
+```cmd
+npm run dev -- --host 0.0.0.0
+```
+
+网页：`http://localhost:5173`；后端健康检查：`http://localhost:3000/health`。
+
+## 账号与数据
+
+- 普通用户在注册页创建，角色固定为 `reader`。
+- 管理员用户名固定为 `admin`；随机密码在本机 `.env` 的 `ADMIN_PASSWORD`。
+- SQLite 文件是 `var/blog.sqlite`。
+- `.env`、`var`、`node_modules` 不提交到 Git。
+- 详细开发、验证、提交和部署步骤见 `实操手册/lesson-08_统一实操.md`。
