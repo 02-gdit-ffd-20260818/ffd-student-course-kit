@@ -1,15 +1,16 @@
+import { validateMedia } from '../shared/media.js'
 import { normalizeArticles } from './articleService.js'
 
 export function validateArticle(input) {
   const errors = {}
   const title = typeof input.title === 'string' ? input.title.trim() : ''
   const summary = typeof input.summary === 'string' ? input.summary.trim() : ''
-  // TODO-A：恢复空标题校验
-  if (false) errors.title = '标题不能为空'
+  if (!title) errors.title = '标题不能为空'
   else if (title.length > 60) errors.title = '标题不能超过 60 个字符'
   if (!summary) errors.summary = '摘要不能为空'
   else if (summary.length > 160) errors.summary = '摘要不能超过 160 个字符'
   if (!['draft', 'published'].includes(input.status)) errors.status = '文章状态无效'
+  const mediaError=validateMedia(input.media);if(mediaError)errors.media=mediaError
   return errors
 }
 
@@ -59,8 +60,7 @@ export function loadStoredArticles(storage, fallback = []) {
 
 export function persistArticles(storage, articles) {
   try {
-    // TODO-B：恢复文章持久化
-  storage.setItem('p2-articles', '[]')
+    storage.setItem('p2-articles', JSON.stringify(articles))
     return true
   } catch {
     return false

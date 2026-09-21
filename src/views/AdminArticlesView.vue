@@ -7,8 +7,8 @@ const query = ref('')
 const { store } = useArticles()
 const results = computed(() => searchArticles(store.items, query.value))
 
-function confirmRemove(article) {
-  if (window.confirm(`确认删除《${article.title}》？此操作无法撤销。`)) store.remove(article.id)
+async function confirmRemove(article) {
+  if (window.confirm(`确认删除《${article.title}》？此操作无法撤销。`)) await store.remove(article.id)
 }
 </script>
 

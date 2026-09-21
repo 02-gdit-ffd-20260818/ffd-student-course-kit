@@ -1,25 +1,11 @@
-﻿# 第08课学生起步：博客管理端
+# 第8课学生模板｜文章保存与SQLite文章表
 
-本目录是可以独立运行的课堂模板。缺课或上次项目不可用时，直接克隆 lesson-08 分支从零开始。
+本课从完整SQLite工程开始，缺课也可直接克隆。
 
-## 桌面领取
+- 课前：可以登录，但文章只适合阅读
+- 课后：教师账号可新建、修改、发布文章；刷新和重启后文章仍存在
+- TODO 1：跟踪表单对象如何转换成JSON请求以及服务端如何校验
+- TODO 2：新增文章后查询SQLite，再重启API确认文章仍存在
+- 重点文件：src/views/ArticleFormView.vue；src/services/articleApi.js；server/services/articleInput.js；server/course-app.js；course_articles表
 
-```bat
-cd /d "%USERPROFILE%\Desktop"
-if not exist web-work mkdir web-work
-cd web-work
-if not exist p2-blog mkdir p2-blog
-cd p2-blog
-git clone --branch lesson-08 --single-branch https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git lesson-08
-cd lesson-08
-npm.cmd ci
-```
-
-在Trae IDE中打开本文件夹。第07—08课只启动网页；第09—11课还需要启动Express API。
-
-## 本课两个TODO
-
-1. 阻止空标题提交。
-2. 保存文章和媒体结构。
-
-主要修改文件：`src/views/ArticleFormView.vue`。完整步骤、答案解释、测试、Git提交和部署方法看教师发放的本课《统一实操手册》。
+启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。

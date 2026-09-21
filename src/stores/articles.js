@@ -1,28 +1,48 @@
 import { defineStore } from 'pinia'
-import { loadStoredArticles, persistArticles, removeArticle, saveArticle } from '../services/articleEditorService.js'
+import { articleApi } from '../services/articleApi.js'
+import { validateArticle } from '../services/articleEditorService.js'
 
 export const useArticleStore = defineStore('articles', {
-  state: () => ({ items: [], ready: false }),
+  state: () => ({ items: [], ready: false, status: 'idle', errorMessage: '' }),
   getters: {
-    published: (state) => state.items.filter((article) => article.status !== 'draft'),
+    published: (state) => state.items.filter((article) => article.status === 'published'),
     byId: (state) => (id) => state.items.find((article) => article.id === Number(id)) ?? null,
   },
   actions: {
-    hydrate(seed, storage = window.localStorage) {
-      if (!this.ready) this.items = loadStoredArticles(storage, seed)
-      this.ready = true
-    },
-    save(input, storage = window.localStorage) {
-      const result = saveArticle(this.items, input)
-      if (result.ok) {
-        this.items = result.items
-        persistArticles(storage, this.items)
+    async fetchAll(api = articleApi) {
+      this.status = 'loading'
+      this.errorMessage = ''
+      try {
+        this.items = await api.list()
+        this.ready = true
+        this.status = this.items.length ? 'success' : 'empty'
+      } catch (error) {
+        this.status = 'error'
+        this.errorMessage = error.message
       }
-      return result
     },
-    remove(id, storage = window.localStorage) {
-      this.items = removeArticle(this.items, id)
-      persistArticles(storage, this.items)
+    async save(input, api = articleApi) {
+      const errors = validateArticle(input)
+      if (Object.keys(errors).length) return { ok: false, errors }
+      try {
+        const article = input.id ? await api.update(input.id, input) : await api.create(input)
+        const index = this.items.findIndex((item) => item.id === article.id)
+        if (index >= 0) this.items.splice(index, 1, article)
+        else this.items.push(article)
+        return { ok: true, errors: {}, article }
+      } catch (error) {
+        return { ok: false, errors: error.fields || {}, formError: error.message }
+      }
+    },
+    async remove(id, api = articleApi) {
+      try {
+        await api.remove(id)
+        this.items = this.items.filter((article) => article.id !== Number(id))
+        return true
+      } catch (error) {
+        this.errorMessage = error.message
+        return false
+      }
     },
   },
 })
