@@ -9,3 +9,9 @@
 - 重点文件：server/course-app.js中的signed/admin；src/router.js；ArticleComments.vue；tests/api.test.mjs
 
 启动：`npm install` → `node tools/prepare-env.mjs` → `npm run setup:course` → 分别运行 `npm run dev:api` 和 `npm run dev -- --host 0.0.0.0`。
+## 账号说明
+
+- 普通用户：在注册页面创建，角色固定为 `reader`。
+- 管理员：运行 `node tools/prepare-env.mjs` 后，用户名是 `teacher`，随机密码在本机 `.env` 的 `ADMIN_PASSWORD`。
+- `.env`、`var`、`node_modules` 不提交Git。
+- 本地数据库：`var/course-blog.sqlite`；公网数据库由服务器 `.env` 的 `DATABASE_PATH` 指定。
