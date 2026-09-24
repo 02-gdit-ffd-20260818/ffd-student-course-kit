@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.netlify/
+coverage/
+*.log
+
+.env
+.env.*
+!.env.example
+var/
+backups/
+node_modules/
+dist/
+.netlify/
