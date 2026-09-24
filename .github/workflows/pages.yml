@@ -1,0 +1,55 @@
+# 个人主页的自动检查与自动发布
+#
+# 触发：每次往 main 推代码，或手动点 Run workflow
+# 作用：先自检（CI），通过了再发布到 GitHub Pages（CD）
+#
+# 这个项目是纯静态网页，没有 npm 依赖，所以不需要 npm ci，
+# 也不需要构建，检查完直接把整个目录发出去。
+
+name: 检查并发布个人主页
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # 允许在 Actions 页面手动触发
+
+# 发布到 Pages 需要的权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一个发布，后来的等前面的做完
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # 第一个任务：自检
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: 检查文件、引用和锚点
+        run: node tools/check-page.mjs
+
+  # 第二个任务：发布。needs 表示必须等 check 成功才开始
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: 打包整个网站目录
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - name: 发布到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
