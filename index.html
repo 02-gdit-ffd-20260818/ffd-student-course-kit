@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <meta content="noindex, nofollow" name="robots"/>
+  <meta content="课程练习：个人介绍、技能与作品门户。" name="description"/>
+  <!-- ============ TODO 01（极简单）：把标签页标题改成你自己的 ============
+       <title> 的内容不显示在页面里，它显示在**浏览器标签页上**，
+       也是别人收藏这个页面、搜索引擎收录时看到的名字。
+       写法建议：姓名 · 一句话身份，例如「张三 · 软件技术在读」。
+       操作前：标签页写着「我的个人主页」。
+       操作后：标签页写着你的名字。
+       ========================================================== -->
+  <title>
+   我的个人主页
+  </title>
+  <link href="assets/favicon.svg" rel="icon" type="image/svg+xml"/>
+  <!-- CSS 负责颜色、字体、布局；defer 让 JavaScript 在 HTML 解析完成后执行。 -->
+  <link href="styles.css" rel="stylesheet"/>
+ 
+ </head>
+ <body>
+  <a class="skip-link" href="#main">
+   跳到正文
+  </a>
+  <header class="site-header">
+   <div class="container header-inner">
+    <a class="brand" href="#about">
+     我的主页
+    </a>
+    <!-- href="#栏目ID" 是原生锚点：即使不加载 JavaScript，也能跳到对应栏目。 -->
+    <nav aria-label="主导航">
+     <a href="#about">
+      关于
+     </a>
+     <a href="#experience">
+      经历
+     </a>
+     <a href="#projects">
+      科研
+     </a>
+     <a href="#skills">
+      技能
+     </a>
+     <a href="#portfolio">
+      作品
+     </a>
+     <a href="#teaching">
+      教学
+     </a>
+     <a href="#publications">
+      成果
+     </a>
+    </nav>
+   </div>
+  </header>
+  <main id="main">
+   <!-- ============ TODO 02（极简单）：把首屏的姓名和身份改成你自己的 ============
+        这是整页最显眼的一块，别人打开先看到它。
+        section 表示一个有明确主题的页面区域；class="hero" 供 CSS 设置顶部视觉样式。
+        id="about" 是此区域在页面中的唯一名称，导航 href="#about" 会跳到这里。
+        h1 是本页最重要的一级标题；p 是普通段落；class 是给元素起的可复用样式名称。
+        只修改开始标签与结束标签之间的文字，不删除 <、>、引号或结束标签。
+        操作前是所有学生相同的占位内容；操作后顶部应能明确回答“这是谁、学什么、来自哪里”。 -->
+   <section class="hero" id="about">
+    <div class="container">
+     <div class="hero-top">
+      <div class="hero-copy">
+       <h1>
+        请填写姓名
+        <span>
+         Lin
+        </span>
+       </h1>
+       <p class="hero-role">
+        软件技术专业学生 · 前端开发学习者
+       </p>
+       <p class="hero-school">
+        我的学校 · 我的班级
+       </p>
+      </div>
+      <div class="hero-visual">
+       <!-- ============ TODO 03（简单）：换上你自己的照片 ============
+            先把图片文件放进 assets 文件夹，再改下面 img 的 src 和 alt。
+            img 是图片元素，不需要单独的结束标签；src 是 source（来源），填写相对当前 HTML 的图片路径。
+            例如 src="assets/zhangsan.jpg" 表示进入 assets 文件夹读取 zhangsan.jpg。
+            alt 是图片的文字替代说明，图片加载失败或使用屏幕阅读器时会用到，不能只写“图片”。
+            width 和 height 提前告诉浏览器图片比例，可减少加载时页面跳动；CSS 仍会控制实际显示大小。
+            操作前显示统一头像；操作后显示个人图片，并有准确的替代文字。 -->
+       <figure>
+        <img alt="个人头像占位图，请替换为自己的图片" height="220" src="assets/avatar.svg" width="220"/>
+       </figure>
+      </div>
+     </div>
+     <div class="research-direction" id="research-direction">
+      <span class="eyebrow">
+       学习方向
+      </span>
+      <p>
+       HTML5、CSS3、JavaScript，正在学习 Git、数据库与网站部署。
+      </p>
+     </div>
+     <div class="profile-details">
+      <div>
+       <span>
+        学习阶段
+       </span>
+       <p>
+        在校学习
+       </p>
+      </div>
+      <div>
+       <span>
+        所在城市
+       </span>
+       <p>
+        珠海
+       </p>
+      </div>
+      <!-- ============ TODO 04（简单）：把联系方式做成可以点的链接 ============
+           现在这里只是一段死文字，别人看到了还得手动抄下来。
+           改成 <a href="mailto:你的邮箱">你的邮箱</a>，点一下就能唤起邮件客户端。
+           mailto: 是一种特殊的链接协议，和 https: 并列，专门用来写邮件。
+           **只写可以公开的联系方式**，不要写手机号、身份证号、家庭住址。
+           操作前：这里是一行灰色的死文字，鼠标移上去没反应。
+           操作后：文字变成带下划线的链接，鼠标移上去变成小手，点击唤起邮件。
+           ============================================================ -->
+      <div>
+       <span>
+        联系
+       </span>
+       <p>
+        请填写可公开的联系方式
+       </p>
+      </div>
+      <div>
+       <span>
+        学校地址
+       </span>
+       <p>
+        请填写自己的学校地址
+       </p>
+      </div>
+     </div>
+    </div>
+   </section>
+   <!-- 每个栏目复用 section → container → 标题/内容 的结构，统一由 CSS 控制样式。 -->
+   <section class="section" id="experience">
+    <div class="container">
+     <header class="section-heading">
+      <h2>
+       教育与工作经历
+      </h2>
+     </header>
+     <div class="section-content">
+      <!-- ============ TODO 05（简单）：写上你自己的经历，并再加一条 ============
+           先改这一条，再整段复制出第二条，让列表至少有两项。
+           div 是通用内容容器；class="experience-item" 让多条经历共用同一套 CSS。
+           strong 表示内容重要，浏览器通常显示为粗体；time 表示时间信息；p 表示一段文字。
+           复制时必须从 <div class="experience-item"> 到对应的 </div> 一起复制，避免标签结构断裂。
+           操作前：经历栏目只有一条示例内容。
+           操作后：至少两条你自己的经历，时间、单位、说明都对得上。
+           操作前是示例学校和说明；操作后应显示学生自己的真实学习经历。 -->
+      <div class="experience-item">
+       <p class="experience-heading">
+        <strong>
+         请填写学校与专业
+        </strong>
+        <time>
+         在读
+        </time>
+       </p>
+       <p class="experience-detail">
+        学习网页开发，用项目记录成长。
+       </p>
+      </div>
+     </div>
+    </div>
+   </section>
+   <section class="section" id="projects">
+    <div class="container">
+     <header class="section-heading">
+      <h2>
+       项目经历
+      </h2>
+     </header>
+     <div class="section-content">
+      <article class="research-item">
+       <h3>
+        <time>
+         课程练习
+        </time>
+        个人主页
+       </h3>
+       <p>
+        项目内容：制作自己的网页，展示资料与作品，记录修改、测试与发布过程。
+       </p>
+      </article>
+     </div>
+    </div>
+   </section>
+   <section class="section" id="skills">
+    <div class="container">
+     <header class="section-heading">
+      <h2>
+       技能与实践
+      </h2>
+     </header>
+     <div class="section-content">
+      <ul class="skills-list">
+       <li>
+        <strong>
+         网页内容
+        </strong>
+        HTML5 结构、图片、链接。
+       </li>
+       <li>
+        <strong>
+         页面样式
+        </strong>
+        CSS3 字体、颜色、响应式布局。
+       </li>
+       <li>
+        <strong>
+         开发过程
+        </strong>
+        JavaScript、Git、检查与部署。
+       </li>
+      </ul>
+     </div>
+    </div>
+   </section>
+   <section class="section" id="portfolio">
+    <div class="container">
+     <header class="section-heading">
+      <h2>
+       作品门户
+      </h2>
+      <p class="works-notice">
+       以下为教学示例，完成后可替换为自己的作品。
+      </p>
+     </header>
+     <!-- ============ TODO 06（中等）：把第一张作品卡换成你自己的 ============
+          现在这四张卡是课程示例。挑第一张改成你自己的作品（可以是本课这个主页本身）：
+            · <h3> 里的标题改成你的作品名
+            · <p> 里的说明改成一句话介绍
+            · <a href="..."> 改成你作品的网址（还没有就先填 #）
+          注意 <a> 上那两个属性不要删：
+            target="_blank"  在新标签页打开，别人不会离开你的主页
+            rel="noopener noreferrer"  安全属性，防止新页面反过来操纵你的页面
+          操作前：四张卡全是课程示例，点进去是别人的网站。
+          操作后：第一张卡是你自己的作品，标题和说明都是你写的。
+          ============================================================ -->
+     <ol class="portfolio-list">
+      <li class="work-card work-blog">
+       <a href="https://ffd-p2-blog.netlify.app/" rel="noopener noreferrer" target="_blank">
+        <div class="work-cover">
+         <img alt="长风成卷 · 博客应用的实际网页截图" decoding="async" height="800" src="assets/work-blog.png" width="1200"/>
+        </div>
+        <div class="work-copy">
+         <h3>
+          长风成卷 · 博客应用
+         </h3>
+         <p>
+          文章展示、接口与数据库。
+         </p>
+        </div>
+       </a>
+      </li>
+      <li class="work-card work-community">
+       <a href="https://ffd-p3-community.netlify.app/" rel="noopener noreferrer" target="_blank">
+        <div class="work-cover">
+         <img alt="群像云图 · 社区应用的实际网页截图" decoding="async" height="800" src="assets/work-community.png" width="1200"/>
+        </div>
+        <div class="work-copy">
+         <h3>
+          群像云图 · 社区应用
+         </h3>
+         <p>
+          内容发布与社区互动。
+         </p>
+        </div>
+       </a>
+      </li>
+      <li class="work-card work-greeting-card">
+       <a href="https://ffd-p4-greeting-card.netlify.app/" rel="noopener noreferrer" target="_blank">
+        <div class="work-cover">
+         <img alt="一笺心意 · 祝福卡片的实际网页截图" decoding="async" height="800" src="assets/work-greeting-card.png" width="1200"/>
+        </div>
+        <div class="work-copy">
+         <h3>
+          一笺心意 · 祝福卡片
+         </h3>
+         <p>
+          卡片制作与作品分享。
+         </p>
+        </div>
+       </a>
+      </li>
+      <li class="work-card work-music-station">
+       <a href="https://ffd-p5-music-station.netlify.app/" rel="noopener noreferrer" target="_blank">
+        <div class="work-cover">
+         <img alt="星声音乐站 · 音乐应用的实际网页截图" decoding="async" height="800" src="assets/work-music-station.png" width="1200"/>
+        </div>
+        <div class="work-copy">
+         <h3>
+          星声音乐站 · 音乐应用
+         </h3>
+         <p>
+          网页音频与交互实践。
+         </p>
+        </div>
+       </a>
+      </li>
+     </ol>
+    </div>
+   </section>
+   <section class="section" id="teaching">
+    <div class="container">
+     <header class="section-heading">
+      <h2>
+       学习与实践
+      </h2>
+     </header>
+     <div class="section-content">
+      <div class="teaching-group">
+       <h3>
+        本学期目标
+       </h3>
+       <ol>
+        <li>
+         每次课完成一个可运行的小改动。
+        </li>
+        <li>
+         能解释自己修改的 HTML、CSS 和 JavaScript。
+        </li>
+        <li>
+         使用 Git 记录版本，让作品能被别人访问。
+        </li>
+       </ol>
+      </div>
+     </div>
+    </div>
+   </section>
+   <section class="section" id="publications">
+    <div class="container">
+     <header class="section-heading">
+      <h2>
+       学习记录
+      </h2>
+     </header>
+     <div class="section-content">
+      <div class="publication-group">
+       <h3>
+        我的记录
+       </h3>
+       <ol class="references">
+        <li>
+         完成第一张个人主页。
+        </li>
+        <li>
+         后续在这里补充自己的真实成果。
+        </li>
+       </ol>
+      </div>
+     </div>
+    </div>
+   </section>
+  </main>
+  <!-- ============ TODO 07（中等）：给页脚加上署名和年份 ============
+       正规网站的页脚都有一行版权署名。在两个链接后面加一段：
+         <p>© 2026 你的名字</p>
+       © 这个符号直接复制即可，也可以写 HTML 实体 &copy;。
+       <footer> 是语义标签，告诉浏览器和搜索引擎"这是页脚"，
+       不要用 <div class="footer"> 代替——那样机器读不懂。
+       操作前：页脚只有两个链接，页面结尾很突兀。
+       操作后：页脚多一行署名，整页有了正式的收尾。
+       ====================================================== -->
+  <footer>
+   <div class="container footer-inner">
+    <a href="#about">
+     回到顶部
+    </a>
+    <a href="#portfolio">
+     作品门户
+    </a>
+   </div>
+  </footer>
+ </body>
+</html>
