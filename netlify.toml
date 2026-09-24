@@ -1,0 +1,28 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[functions]
+  # 函数用 ES 模块写，依赖跟着根目录的 package.json 走
+  node_bundler = "esbuild"
+  directory = "netlify/functions"
+
+# /api/greeting、/api/card、/c/:slug 三条路由由函数自己用 config.path 声明，
+# 这里只兜底：其余路径一律交给单页应用。
+# 注意顺序——重定向是自上而下匹配的，这条必须放最后。
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 安全响应头。贺卡页面会渲染用户写的文字，CSP 能再挡一层。
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
