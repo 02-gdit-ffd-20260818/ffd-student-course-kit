@@ -1,0 +1,11 @@
+[Unit]
+Description=Run PersonaLink database backup hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=5m
+Unit=personalink-backup-db.service
+
+[Install]
+WantedBy=timers.target

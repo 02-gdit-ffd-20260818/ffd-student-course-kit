@@ -1,0 +1,28 @@
+node_modules/
+frontend/dist/
+.npm-cache/
+.env
+.env.*
+!.env.example
+backend/.env
+
+# Runtime data (keep only empty directory markers)
+data/*
+!data/uploads/
+data/uploads/*
+!data/uploads/.gitkeep
+logs/*
+!logs/.gitkeep
+backups/*
+!backups/.gitkeep
+
+# Database exports and backup archives
+*.dump
+*.sql
+!backend/migrations/*.sql
+*.tar.gz
+*.enc
+
+# Logs and test output
+*.log
+coverage/
