@@ -1,0 +1,20 @@
+{
+  "name": "personalink-backend",
+  "version": "1.0.0",
+  "description": "Backend server for Vue user information sharing",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "db:status": "node scripts/db-status.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}
