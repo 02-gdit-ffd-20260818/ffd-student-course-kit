@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+backups/
+*.sql.gz
+frontend/node_modules/
+backend/node_modules/
+
+# Build output
+frontend/dist/
+
+# Logs and local settings
+*.log
+.env
+.env.*
+!.env.example
+
+# backend/db.json 是本教学项目刻意维护的模拟数据快照，会随代码发布。
+# 真实用户导出、数据库备份和真实上传内容仍不得提交到版本库。
+uploads/
