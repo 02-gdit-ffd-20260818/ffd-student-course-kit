@@ -1,0 +1,14 @@
+node_modules/
+frontend/dist/
+.env
+backend/.env
+
+# SQLite runtime files
+backend/data/*.sqlite
+backend/data/*.sqlite-shm
+backend/data/*.sqlite-wal
+backend/data/legacy-db.json
+
+# Logs and test output
+*.log
+coverage/
