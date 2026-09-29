@@ -1,0 +1,13 @@
+/* 起步样式：第 2、3 课逐步增强，不需要安装 npm。 */
+* { box-sizing: border-box; }
+body { margin: 24px; font: 18px/1.8 "Times New Roman", "Microsoft YaHei", serif; color: #343c38; }
+img { max-width: 100%; height: auto; }
+.container { max-width: 1200px; margin: auto; }
+nav a { margin-right: 16px; }
+section { margin: 32px 0; }
+.hero-visual img { width: 160px; height: 160px; }
+.portfolio-list { list-style: none; padding: 0; }
+.work-cover { display: none; }
+.skip-link { display: none; }
+
+/* 本课任务详见课堂任务.md。 */
