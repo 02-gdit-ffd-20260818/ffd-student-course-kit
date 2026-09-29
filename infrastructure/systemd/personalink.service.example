@@ -1,0 +1,18 @@
+[Unit]
+Description=PersonaLink backend
+After=network.target
+
+[Service]
+Type=simple
+# 将 ubuntu 和 /home/ubuntu 替换为服务器上的实际用户名与主目录。
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/var/www/personalink
+Environment=NODE_ENV=production
+Environment=HOME=/home/ubuntu
+ExecStart=/bin/bash -lc 'source /home/ubuntu/.nvm/nvm.sh && exec npm start'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
