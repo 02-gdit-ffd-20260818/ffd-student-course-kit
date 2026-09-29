@@ -1,0 +1,124 @@
+name: personalink
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+            # ======== TODO 04（简单）：密码从 .env 读，不写进 compose ========
+      # compose.yaml 是要进 Git 的，**密码绝对不能写在里面**。
+      #
+      # 终端里看得到的结果：docker compose config 能看到密码被替换成了
+      # .env 里的真实值，但 compose.yaml 本身里只有占位符。
+      #
+      # TODO：改成 ${POSTGRES_PASSWORD}，真实值写在同目录的 .env 里。
+      #
+      # **注意一个真实踩过的坑**：.env 里的值如果含 #，
+      # # 后面的内容会被当成注释截断。
+      # 比如 POSTGRES_PASSWORD=Abc#2026 实际读到的是 Abc，
+      # 表现出来就是"密码明明对的却连不上"。
+      # 含特殊字符时要加引号：POSTGRES_PASSWORD="Abc#2026"
+      # ======================================================
+      POSTGRES_DB: personalink
+      POSTGRES_USER: personalink
+      POSTGRES_PASSWORD: personalink123
+        # ======== TODO 01（极简单）：给数据库加上持久卷和健康检查 ========
+    # **容器是用完即弃的。** 删掉重建之后，容器里写的东西全没了。
+    # 数据库的数据必须放在**卷（volume）**里，卷独立于容器存在。
+    #
+    # 终端里看得到的结果：docker compose down 再 up，
+    # **数据还在**；加 -v 参数（连卷一起删）再 up，数据才没。
+    # 这一对实验是本课最重要的演示。
+    #
+    # TODO 两件事：
+    #   1) volumes: 把 postgres_data 挂到 /var/lib/postgresql/data
+    #      （这是 PostgreSQL 存数据的目录）
+    #   2) healthcheck: 用 pg_isready 定期检查数据库活没活
+    #
+    # 健康检查为什么重要：后端容器启动比数据库快，
+    # 它一上来就连数据库会连不上直接崩。
+    # 有了健康检查，后端可以配 depends_on: condition: service_healthy，
+    # **等数据库真正就绪了再启动**。
+    # ========================================================
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      PORT: 3003
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./logs:/app/logs
+        # ======== TODO 02（简单）：让后端等数据库真正就绪 ========
+    # 终端里看得到的结果：docker compose up 时，
+    # 后端容器会**等着**，直到数据库健康检查通过才启动，
+    # 而不是一上来就报"连接被拒绝"然后反复重启。
+    #
+    # TODO：补上依赖声明
+    #   depends_on:
+    #     postgres:
+    #       condition: service_healthy
+    #
+    # 注意 depends_on **单独写只保证启动顺序，不保证"能用了"**。
+    # 容器起来了不等于里面的数据库初始化完了。
+    # 必须配合 TODO 01 的 healthcheck 加上 condition，才是真的等就绪。
+    # 这是 Docker Compose 里最常被误解的一个点。
+    # ================================================
+    networks: [internal]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+            # ======== TODO 03（简单）：端口只开给本机 ========
+      # 终端里看得到的结果：在服务器上 curl 127.0.0.1:3100 能通，
+      # 但从外网直接访问这个端口**连不上**。
+      #
+      # TODO：把端口映射写成 "127.0.0.1:${FRONTEND_PORT:-3100}:80"
+      #
+      # 前面加 127.0.0.1 的意思是"**只绑定本机回环地址**"。
+      # 不加的话默认绑到 0.0.0.0，也就是**对整个互联网开放**——
+      # 这是容器化部署里最常见的一个安全事故：
+      # 有人以为有防火墙就安全了，但 Docker 会自己改 iptables 规则，
+      # 把端口直接捅到公网上。
+      #
+      # 那外网怎么访问？由宿主机上的 Nginx 反向代理转发进来，
+      # Nginx 负责 HTTPS、限流和安全响应头。
+      # ========================================
+      - "${FRONTEND_PORT:-3100}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [internal]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: personalink_postgres_data
