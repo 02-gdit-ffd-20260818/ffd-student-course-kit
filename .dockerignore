@@ -1,0 +1,15 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+.npm-cache
+node_modules
+frontend/dist
+data
+logs
+backups
+*.log
+*.dump
+*.tar.gz
+*.enc
