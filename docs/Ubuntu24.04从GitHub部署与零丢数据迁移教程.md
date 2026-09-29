@@ -1,0 +1,868 @@
+# Ubuntu 24.04 LTS 从 GitHub 零基础部署 PersonaLink
+
+> 适用项目：`https://github.com/Abner199/PersonaLink_MySQL_20260821`  
+> 适用系统：Ubuntu Server 24.04 LTS（Noble Numbat）  
+> 部署方式：Nginx + Node.js 22 + Express + MySQL，先用公网 IP 验证，再选配域名和 HTTPS
+
+本文假定服务器是刚安装完成的 Ubuntu 24.04 LTS，除系统本身外什么都没有。从第一次 SSH 登录开始，依次完成软件安装、下载代码、配置 MySQL、构建前端、启动后端、配置 Nginx，以及可选的域名和 HTTPS。
+
+按本项目推荐的演示流程完成后，网页会显示 3 个班级、42 名学生及照片墙；学生当前使用随前端发布的本地默认头像。要得到这些内容，必须执行第 9.1 节把仓库模拟快照导入 MySQL，仅建表或仅创建管理员不会自动产生班级和学生。
+
+当前稳定版本为 [`v1.0.5`](https://github.com/Abner199/PersonaLink_MySQL_20260821/releases/tag/v1.0.5)。需要长期复现完全相同的代码时应部署该标签；需要持续接收最新修改时使用 `main`。
+
+命令分为两类：标有“Windows PowerShell”的命令在自己的 Windows 电脑执行，其余 `bash` 命令均在 SSH 登录后的 Ubuntu 服务器执行。命令中的 `你的公网IP` 和 `你的域名` 是占位内容，必须替换为真实值，不要原样输入。本教程的 MySQL 应用账号密码固定为 `123456`，可直接复制。
+
+为避免复制时漏掉反斜杠、空格或续行，本教程中需要直接运行的命令均为“一行一条”。每个代码块可以整块粘贴执行；不要把终端提示符（例如 `root@server:~#`）一起复制。
+
+## 1. 先理解最终结构
+
+```text
+用户浏览器
+   ↓ 80/443
+Nginx
+   ├─ /              → Vue 构建后的静态文件
+   ├─ /api/          → Express 127.0.0.1:3003
+   └─ /health        → Express 健康检查
+                          ↓
+                    MySQL 127.0.0.1:3306
+```
+
+GitHub 保存代码和仓库内明确标注的 `backend/db.json` 教学模拟数据，但不保存服务器上的 `.env` 和实时 MySQL 数据。模拟 JSON 只用于首次导入，网站运行时的班级、学生、资料和头像全部来自 MySQL。换服务器时必须同时迁移“同一个 Git 版本”和“最终 MySQL 备份”。当前用户上传头像在 MySQL `users.avatar` 中，会随 SQL 备份迁移；默认图片在代码的 `frontend/public/images` 中。
+
+## 2. 准备清单
+
+开始前准备：
+
+- 一台安装 Ubuntu 24.04 LTS 的云服务器，建议至少 2 核、2 GB 内存。
+- 服务器公网 IP、SSH 用户名和密码或密钥。
+- 云平台安全组已允许入站 TCP `22`、`80`；使用域名 HTTPS 时再允许 `443`。
+- 安全组不要开放 `3003` 和 `3306`。它们只供服务器内部使用。
+- 可选域名：先把域名的 A 记录指向服务器公网 IP，等待解析生效。
+
+下文假定 SSH 用户叫 `ubuntu`。如果云厂商给的是其他用户名，以实际用户名为准。
+
+## 3. 第一次连接服务器
+
+Windows PowerShell 执行：
+
+```powershell
+ssh ubuntu@你的公网IP
+```
+
+第一次出现主机指纹时，核对 IP 后输入 `yes`。登录后检查系统：
+
+```bash
+cat /etc/os-release
+uname -m
+```
+
+应看到 Ubuntu 24.04；常见架构是 `x86_64` 或 `aarch64`。
+
+## 4. 更新系统并配置防火墙
+
+先安装基础软件：
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+sudo apt install -y git curl ca-certificates openssl nginx mysql-server
+```
+
+上面三条命令依次用于刷新软件列表、安装系统更新、安装部署所需软件。如果升级提示需要重启，执行 `sudo reboot`，等待约一分钟后重新 SSH 登录。
+
+先允许 SSH，再启用 UFW，顺序不要反：
+
+```bash
+# 先允许默认 22 端口的 SSH，避免启用防火墙后断开连接
+sudo ufw allow OpenSSH
+
+# 同时允许 Nginx 的 HTTP 80 和 HTTPS 443
+sudo ufw allow 'Nginx Full'
+
+# 启用防火墙；出现确认提示时输入 y
+sudo ufw enable
+
+# 查看最终规则，不应出现 3003 和 3306
+sudo ufw status verbose
+```
+
+如果启用 UFW 后 SSH 断开，通常是云安全组或 SSH 端口不是 22。此时使用云厂商网页控制台修复，不要反复重装系统。
+
+检查 MySQL 和 Nginx：
+
+```bash
+sudo systemctl status mysql --no-pager
+sudo systemctl status nginx --no-pager
+```
+
+两者应为 `active (running)`。
+
+## 5. 安装 Node.js 22
+
+本项目的 Vite 8 需要较新的 Node.js。Ubuntu 自带版本可能不满足要求，因此使用 NodeSource 的 Node.js 22 仓库：
+
+```bash
+# 下载 NodeSource 的 Node.js 22 安装脚本
+curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh
+
+# 添加 Node.js 22 软件源并安装 Node.js（npm 会一同安装）
+sudo -E bash /tmp/nodesource_setup.sh
+sudo apt install -y nodejs
+
+# Node.js 应显示 v22.x
+node -v
+npm -v
+
+# 删除已经用完的临时脚本
+rm /tmp/nodesource_setup.sh
+```
+
+`node -v` 应为 `v22.x`；不要继续使用低于项目要求的版本。
+
+## 6. 从 GitHub 公开仓库下载项目
+
+PersonaLink 仓库已经设置为 Public。克隆公开仓库不需要 GitHub 账号、密码、Token 或 SSH Key。直接执行下面的命令：
+
+```bash
+# 创建项目目录并交给当前 SSH 用户管理
+sudo mkdir -p /srv/personalink
+sudo chown "$USER":"$USER" /srv/personalink
+
+# 只克隆用于生产的 main 分支
+git clone --branch main --single-branch https://github.com/Abner199/PersonaLink_MySQL_20260821.git /srv/personalink
+
+cd /srv/personalink
+git branch --show-current
+git log -1 --oneline
+git status --short
+```
+
+应看到当前分支为 `main`，`git status --short` 应没有输出。
+
+若本次要固定部署 `v1.0.5`，克隆完成后再执行以下两条命令。固定标签适合教学复现和问题溯源；此后不要在服务器直接修改代码：
+
+```bash
+cd /srv/personalink
+git switch --detach v1.0.5
+```
+
+正常情况下，`git clone` 不会出现用户名和密码提示。如果仍然出现 `Username for 'https://github.com'`，按 `Ctrl+C` 取消，不要输入 GitHub 密码。然后执行下面的匿名克隆命令，它会临时忽略服务器中可能残留的错误凭据：
+
+```bash
+# 上一次克隆失败可能留下空目录；rmdir 只删除空目录，不会删除已有文件
+sudo rmdir /srv/personalink 2>/dev/null || true
+
+# 禁用本次命令的凭据读取和交互提示，以匿名方式克隆公开仓库
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone --branch main --single-branch https://github.com/Abner199/PersonaLink_MySQL_20260821.git /srv/personalink
+```
+
+如果这条命令仍失败，错误原因通常是服务器无法访问 GitHub，而不是账号权限；可先运行 `curl -I https://github.com` 检查网络。
+
+## 7. 创建 MySQL 数据库和应用账号
+
+进入 MySQL 管理终端：
+
+```bash
+sudo mysql
+```
+
+逐行执行下面 SQL。数据库名为 `personalink`，应用账号为 `personalink`，密码固定为 `123456`，不需要再替换：
+
+```sql
+CREATE DATABASE IF NOT EXISTS personalink CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER IF NOT EXISTS 'personalink'@'localhost' IDENTIFIED BY '123456';
+ALTER USER 'personalink'@'localhost' IDENTIFIED BY '123456';
+GRANT SELECT, INSERT, UPDATE, DELETE ON personalink.* TO 'personalink'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+应用不能使用 MySQL `root`。数据库也不应监听公网。
+
+## 8. 建表并配置后端
+
+先由本机 MySQL 管理员加载表结构：
+
+```bash
+sudo mysql < /srv/personalink/backend/database/schema.sql
+
+# 应列出 classes、users、synonym_groups、standard_hobbies
+sudo mysql -e "SHOW TABLES FROM personalink;"
+```
+
+创建后端配置：
+
+```bash
+sudo nano /srv/personalink/backend/.env
+```
+
+填入以下内容；数据库密码已经填写为 `123456`，可直接复制：
+
+```dotenv
+NODE_ENV=production
+PORT=3003
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=personalink
+DB_USER=personalink
+DB_PASSWORD=123456
+DB_CONNECTION_LIMIT=10
+```
+
+在 nano 中按 `Ctrl+O`、回车保存，再按 `Ctrl+X` 退出。限制文件权限：
+
+```bash
+sudo chown "$USER":www-data /srv/personalink/backend/.env
+sudo chmod 640 /srv/personalink/backend/.env
+```
+
+安装后端依赖并确认应用账号能看到数据表：
+
+```bash
+cd /srv/personalink/backend
+npm ci --omit=dev
+
+# 使用与 .env 相同的连接方式测试应用账号；出现提示时输入 123456
+mysql -h 127.0.0.1 -u personalink -p -e "SHOW TABLES FROM personalink;"
+```
+
+MySQL 询问密码时输入 `123456`。输出中应出现 `classes`、`users`、`synonym_groups` 和 `standard_hobbies`。
+
+`npm ci --omit=dev` 输出 `added ... packages` 表示依赖安装完成。出现 `packages are looking for funding`、npm 新版本通知或依赖漏洞摘要，不代表安装失败。上线时不要直接运行 `npm audit fix --force`，它可能升级到不兼容版本；先用 `npm audit --omit=dev` 查看生产依赖报告，再在开发环境评估和测试升级。
+
+## 9. 选择初始数据：演示站或真正空站点
+
+这里必须二选一。“刚购买的新服务器”不等于“没有历史数据的全新站点”。如果希望部署后看到仓库原有的模拟班级和学生，执行 9.1；只有确定不需要任何演示数据时才执行 9.2。不要先创建空管理员再误以为演示数据会自动出现。
+
+### 9.1 教学演示站：把模拟数据导入 MySQL（本项目推荐）
+
+先只读核验仓库自带的 `backend/db.json`，该操作不会连接或修改 MySQL：
+
+```bash
+cd /srv/personalink/backend
+npm run db:inspect-json
+```
+
+当前演示快照应显示 `classes: 3`、`users: 43`、`students: 42`、`studentsWithCustomAvatar: 0`、`studentsUsingDefaultAvatar: 42`、`orphanUsers: 0`、`duplicateEmails: 0`、`passwordsPresent: true` 和 `valid: true`。确认无误后设置管理员新密码并导入：
+
+```bash
+read -rsp '请输入初始管理员密码（至少 8 位）: ' PERSONALINK_ADMIN_PASSWORD
+echo
+ADMIN_INITIAL_PASSWORD="$PERSONALINK_ADMIN_PASSWORD" npm run db:migrate-json
+unset PERSONALINK_ADMIN_PASSWORD
+npm run db:verify
+```
+
+`db:migrate-json` 会在一个事务中清空目标业务表，再把模拟班级、账号、资料、头像、同义词和标准爱好写入 MySQL。它不是把网站改回 JSON 存储；导入后网站仍然只使用 MySQL。校验结果应为 `classes: 3`、`users: 43`、`synonymGroups: 9`、`orphanUsers: 0`、`adminExists: true` 和 `adminPasswordHashed: true`。
+
+演示数据中的 42 名学生没有自定义照片：19 个旧网络占位地址会被后端过滤，另外 23 个头像为空。照片墙仍会显示全部 42 名学生，并按账号稳定分配 `frontend/public/images/avatars` 中随代码发布的本地默认头像；以后用户上传的新头像会保存到 MySQL。
+
+### 9.2 真正空站点：只创建第一个管理员
+
+仅当确定不需要演示班级和学生时执行。刚建完表时提前运行 `npm run db:verify`，会显示 `adminExists: false`、`adminPasswordHashed: false` 并以失败状态退出。这说明数据库连接和表结构正常，但初始化尚未完成，不需要重新建库。
+
+```bash
+cd /srv/personalink/backend
+read -rsp '请输入初始管理员密码（至少 8 位）: ' PERSONALINK_ADMIN_PASSWORD
+echo
+ADMIN_EMAIL='admin@system.com' ADMIN_NAME='系统管理员' ADMIN_INITIAL_PASSWORD="$PERSONALINK_ADMIN_PASSWORD" npm run db:create-admin
+unset PERSONALINK_ADMIN_PASSWORD
+npm run db:verify
+```
+
+管理员邮箱必须使用 `admin@system.com`，当前校验脚本和部分后台保护逻辑依赖该固定邮箱。脚本发现同邮箱已存在时会停止，不会覆盖已有账号或密码。
+
+校验成功时应满足：`users` 至少为 `1`、`orphanUsers` 为 `0`、`adminExists` 和 `adminPasswordHashed` 均为 `true`。全新站点的 `classes: 0` 和 `synonymGroups: 0` 是正常结果。首次登录后，应在“用户管理 → 修改管理员密码”设置长期强密码。
+
+## 10. 构建 Vue 前端
+
+```bash
+cd /srv/personalink/frontend
+npm ci
+npm run build
+test -f dist/index.html && echo '前端构建成功'
+```
+
+线上不运行 `npm run dev`。Nginx 直接读取 `frontend/dist`。
+
+## 11. 用 systemd 常驻运行后端
+
+项目自带经过核对的 service 文件，直接安装，避免手工粘贴遗漏：
+
+```bash
+sudo install -m 644 /srv/personalink/deploy/personalink.service /etc/systemd/system/personalink.service
+```
+
+启动并设置开机启动：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now personalink
+sleep 2
+sudo systemctl status personalink --no-pager
+curl -fsS http://127.0.0.1:3003/health && echo
+curl -fsS http://127.0.0.1:3003/api/version && echo
+```
+
+健康检查的正确结果包含 `"status":"ok"`、`"database":"mysql"` 和 `"version":"1.0.5"`；版本接口应返回 `"release":"v1.0.5"`。等待 2 秒是为了避免 systemd 刚启动 Node、端口尚未监听时立即检查而误报连接失败。
+
+如果第 9 步选择了教学演示数据，再核对后端 API 确实返回 3 个班级和 42 名学生：
+
+```bash
+curl -fsS http://127.0.0.1:3003/api/classes | node -e "let input='';process.stdin.on('data',chunk=>input+=chunk).on('end',()=>{const rows=JSON.parse(input);console.log('API 班级数:',rows.length);if(rows.length!==3)process.exit(1)})"
+curl -fsS http://127.0.0.1:3003/api/photowall | node -e "let input='';process.stdin.on('data',chunk=>input+=chunk).on('end',()=>{const result=JSON.parse(input);console.log('照片墙学生数:',result.data?.length);if(!result.success||result.data?.length!==42)process.exit(1)})"
+```
+
+## 12. 配置 Nginx，通过公网 IP 访问
+
+项目自带配置模板，复制并启用：
+
+```bash
+sudo cp /srv/personalink/nginx.conf /etc/nginx/sites-available/personalink
+sudo ln -sfn /etc/nginx/sites-available/personalink /etc/nginx/sites-enabled/personalink
+if [ -L /etc/nginx/sites-enabled/default ]; then sudo unlink /etc/nginx/sites-enabled/default; fi
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+现在用自己电脑浏览器访问：
+
+```text
+http://你的公网IP
+http://你的公网IP/health
+```
+
+第一个地址应显示登录页；第二个地址应返回 MySQL 健康状态。若服务器内能访问、外部不能访问，优先检查云平台安全组的 80 端口和 UFW。
+
+## 13. 绑定域名并启用 HTTPS
+
+先在域名服务商控制台添加：
+
+```text
+A    @      你的公网IP
+A    www    你的公网IP（可选）
+```
+
+等待解析后，在自己电脑检查：
+
+```powershell
+nslookup 你的域名
+```
+
+解析 IP 正确后，编辑 Nginx：
+
+```bash
+sudo nano /etc/nginx/sites-available/personalink
+```
+
+把：
+
+```nginx
+server_name _;
+```
+
+改为：
+
+```nginx
+server_name 你的域名 www.你的域名;
+```
+
+然后：
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+安装 Certbot 并自动配置证书：
+
+```bash
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/local/bin/certbot
+sudo certbot --nginx
+sudo certbot renew --dry-run
+```
+
+根据提示选择域名并启用 HTTP 跳转 HTTPS。最终访问：
+
+```text
+https://你的域名
+https://你的域名/health
+```
+
+只有公网 IP 时可先使用 HTTP；常规公开证书通常以域名验证为主。
+
+## 14. 上线后的完整验收
+
+逐项确认：
+
+- [ ] `https://你的域名/health` 或 `http://公网IP/health` 返回 `status: ok`。
+- [ ] `/api/version` 返回当前部署的版本；部署本稳定版时应为 `v1.0.5`。
+- [ ] 管理员能登录并修改自己的密码。
+- [ ] 管理员能创建班级和普通用户。
+- [ ] 普通用户能注册、登录、修改资料和头像。
+- [ ] 管理员能查看每班学员姓名、复制名单、导出 CSV。
+- [ ] 搜索、照片墙和同义词页面正常。
+- [ ] 刷新 `/home`、`/classes` 等子页面不会出现 Nginx 404。
+- [ ] 云安全组和 UFW 没有开放 3003、3306。
+
+常用检查命令：
+
+```bash
+sudo systemctl status personalink nginx mysql --no-pager
+sudo journalctl -u personalink -n 100 --no-pager
+sudo nginx -t
+cd /srv/personalink/backend && npm run db:verify
+```
+
+## 15. 日常更新代码
+
+生产服务器优先部署固定版本标签，不直接跟随可能继续变化的 `main`。项目从 `v1.0.2` 起提供统一发布脚本，自动完成备份、版本核对、依赖安装、前端构建、数据库清单比对、服务重启和健康检查。
+
+### 15.1 推荐：部署固定发布标签
+
+第一次安装发布脚本时逐行执行。注释也可以一起复制到终端，不会被执行：
+
+```bash
+# 进入项目并确认工作区干净；git status --short 应没有输出。
+cd /srv/personalink
+git status --short
+
+# 获取标签并从固定版本提取发布脚本，不提前修改网站代码。
+git fetch --tags origin
+git show v1.0.5:scripts/deploy-release.sh | sudo tee /usr/local/sbin/deploy-personalink-release > /dev/null
+sudo chmod 700 /usr/local/sbin/deploy-personalink-release
+
+# 自动备份 MySQL、比对数据并部署固定版本。
+sudo /usr/local/sbin/deploy-personalink-release v1.0.5
+```
+
+成功时最后应显示 `发布成功：v1.0.5；MySQL 数据清单保持一致。`。以后升级只需先确认新标签的发布说明，再执行 `sudo /usr/local/sbin/deploy-personalink-release 新标签`。
+
+### 15.2 仅开发测试：跟随 main 手工更新
+
+下面流程只适合明确需要测试 `main` 最新代码的服务器。先备份数据库；不要在服务器直接修改项目代码，否则 `git pull` 会冲突。
+
+```bash
+# 1. 先生成一份数据库备份，成功后再继续
+sudo /usr/local/sbin/backup-personalink
+
+# 2. 确认工作区干净，然后从公开仓库只允许快进更新
+cd /srv/personalink
+git status --short
+
+# 临时忽略可能残留的 GitHub 凭据，公开仓库可匿名拉取
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= pull --ff-only origin main
+sudo install -m 700 /srv/personalink/scripts/backup-personalink.sh /usr/local/sbin/backup-personalink
+sudo install -m 644 /srv/personalink/deploy/personalink.service /etc/systemd/system/personalink.service
+sudo systemctl daemon-reload
+
+# 3. 更新后端依赖并检查数据库
+cd backend
+npm ci --omit=dev
+npm run db:verify
+
+# 4. 更新前端依赖并重新构建
+cd ../frontend
+npm ci
+npm run build
+
+# 5. 重启服务并完成健康检查
+sudo systemctl restart personalink
+sudo nginx -t
+sudo systemctl reload nginx
+curl http://127.0.0.1:3003/health
+curl http://127.0.0.1:3003/api/version
+```
+
+`git status` 必须干净再拉取。`.env` 被 Git 忽略，不会被 `git pull` 覆盖。
+
+### 15.3 GitHub Actions CI/CD
+
+仓库已提供自动 CI 和需要人工触发、可设置审核人的生产 CD。首次配置 SSH 用户、GitHub Environment、Secrets 和完整故障处理步骤，请阅读 [CI/CD 发布与安全部署](./CI-CD发布与安全部署.md)。CI 中的模拟数据导入只发生在临时 MySQL，生产 CD 不执行模拟数据导入。
+
+### 15.4 真实现场记录：照片墙网络错误与零丢数据升级
+
+2026-09-08，线上手机能够打开首页，但照片墙频繁显示“网络错误”。按三层链路排查后得到：
+
+- 本机 `/health` 正常，证明 Express 能连接 MySQL。
+- `/api/version` 返回 404，证明服务器仍运行没有版本接口的旧代码。
+- HTTPS 443 无法连接，但 HTTP 正常；站点决定暂不配置 HTTPS，因此排障全程使用 `http://peaceinside.fun`。
+- 升级前数据库清单为 7 个班级、89 个账号、88 名学生、50 份已存头像、1,505,310 字节头像数据和 0 个孤立账号。
+
+升级前先保存清单并创建可校验备份：
+
+```bash
+# 保存升级前清单；只读，不修改 MySQL。
+cd /srv/personalink/backend
+npm run db:verify --silent | tee /tmp/personalink-before-upgrade.json
+
+# 工作区无输出后获取固定标签并创建四件套备份。
+cd /srv/personalink
+git status --short
+git fetch --tags origin
+sudo /usr/local/sbin/backup-personalink
+sudo ls -lht /var/backups/personalink
+
+# 校验最新 SQL gzip、代码版本和数据清单。
+sudo bash -c 'cd /var/backups/personalink; checksum=$(ls -1t personalink-*.sql.gz.sha256 | head -n 1); sha256sum -c "$checksum"; gzip -t "${checksum%.sha256}"'
+```
+
+首次升级在 `[8/9]` 遇到 `gzip directive is duplicate`。由于 `[7/9]` 已通过，数据库清单没有变化；失败发生在 Nginx 配置检查，服务也尚未重启。现场采用可恢复改名，不删除配置：
+
+```bash
+# 让 Nginx 不再加载旧附加文件，文件仍然保留。
+sudo mv /etc/nginx/conf.d/personalink-gzip.conf /etc/nginx/conf.d/personalink-gzip.conf.disabled
+sudo nginx -t
+sudo systemctl daemon-reload
+sudo systemctl restart personalink
+sudo systemctl reload nginx
+```
+
+随后固定部署 v1.0.3 成功，升级前后 11 项数据库清单完全一致，公网照片墙列表实测 HTTP 200、37,509 字节、0.022 秒，手机恢复正常访问。v1.0.4 已把全过程固化为一条只读巡检命令：
+
+```bash
+# 当前站点暂未启用 HTTPS，因此明确传入 HTTP 地址。
+sudo /usr/local/sbin/check-personalink http://peaceinside.fun
+```
+
+巡检失败只报告问题，不自动重启、不切换代码、不修改 Nginx，也不写入 MySQL。排障期间不要执行 `npm run db:migrate-json` 或 `npm run db:schema`；它们不是生产升级命令。
+
+### 15.5 真实现场记录：v1.0.5 名单修复与浏览器旧会话
+
+2026-09-09，生产服务器部署 `v1.0.5` 后，发布脚本完整通过 `[1/9]` 至 `[9/9]`，并明确输出 MySQL 数据清单保持一致。只读巡检还确认：
+
+- `personalink`、Nginx、MySQL 均为 active，Nginx 配置正确。
+- 本机和 HTTP 公网的健康、版本接口均返回 `1.0.5`。
+- 7 个班级、89 个账号、88 名学生、50 份头像及 1,505,310 字节头像数据全部保留。
+- 公网照片墙返回 HTTP 200、37,509 字节，耗时约 0.016 秒。
+
+此时服务器已经升级完成，不需要再次部署。浏览器一度仍无法打开受保护的学生名单，是因为后端重启后旧管理员令牌失效，或浏览器仍保留旧页面状态。处理顺序如下：
+
+1. 确认地址是 `http://peaceinside.fun`，本站当前未配置 HTTPS。
+2. 退出管理员账号，完全关闭浏览器，再打开 HTTP 站点重新登录。
+3. 若仍显示旧状态，清理 `peaceinside.fun` 的站点缓存，或用无痕窗口重新登录。
+4. 再打开“班级管理 → 查看学生”；现场完成上述处理后已确认恢复正常。
+
+当只读巡检全部通过且 MySQL 清单正确时，不要重新导入模拟数据、重建表或恢复数据库。浏览器旧会话不会删除学生数据。
+
+## 16. 每日 MySQL 备份
+
+GitHub 中的模拟 JSON 只是固定的首次导入快照，不会随网站操作自动更新。线上新增或修改的用户、班级、资料和头像都只在 MySQL 中，因此仍然必须单独备份数据库。
+
+Ubuntu 的 MySQL 本机管理员默认通过系统身份验证，所以可用 `sudo mysqldump` 备份，不需要把 root 密码写入脚本。项目自带 `scripts/backup-personalink.sh`，它会先写临时文件，完成后检查文件非空和 gzip 完整性，再原子改名，并生成 SHA-256、Git commit 和数据库清单文件。这样中途失败的半成品不会伪装成有效备份。
+
+安装脚本并手工备份一次：
+
+```bash
+sudo install -m 700 /srv/personalink/scripts/backup-personalink.sh /usr/local/sbin/backup-personalink
+sudo /usr/local/sbin/backup-personalink
+sudo ls -lh /var/backups/personalink
+sudo bash -c 'cd /var/backups/personalink; checksum=$(ls -1t personalink-*.sql.gz.sha256 | head -n 1); sha256sum -c "$checksum"; gzip -t "${checksum%.sha256}"; cat "${checksum%.sha256}.git-commit"'
+```
+
+输出的 `.sql.gz` 是数据库备份，`.sha256` 同时校验 SQL、代码版本和数据清单，`.git-commit` 记录生成备份时的网站代码版本，`.inventory.json` 记录各表、学生和头像字节数。四者必须作为一组保存。`--single-transaction` 可在 InnoDB 表继续提供服务时获得一致备份；`--no-tablespaces` 避免不同 MySQL 权限配置导致备份失败。
+
+最后使用 root 定时任务每天 03:30 备份：
+
+```bash
+sudo crontab -e
+```
+
+第一次打开会要求选择编辑器，可以选 nano。在文件末尾加入：
+
+```cron
+# 每天凌晨 03:30 备份；错误和输出写入系统日志
+30 3 * * * /usr/local/sbin/backup-personalink 2>&1 | logger -t personalink-backup
+```
+
+以后可用下面的命令查看最近 7 天的备份任务日志：
+
+```bash
+sudo journalctl -t personalink-backup --since '7 days ago' --no-pager
+```
+
+服务器本地备份无法防御云主机磁盘损坏或账号被删除。至少把最近一组 `.sql.gz`、`.sha256`、`.git-commit`、`.inventory.json` 自动同步到对象存储或另一台机器；在尚未配置自动异地同步时，每次重要修改后手工下载一组。本教程的演示数据库密码为 `123456`；以后接入真实数据时应换成独立强密码，并另存密码管理器。
+
+备份文件存在不等于一定能恢复。建议每月选择一组备份恢复到独立测试库，先运行 `sha256sum -c` 和 `gzip -t`，再核对 `npm run db:verify` 的全部计数、管理员登录、头像、照片墙和搜索。
+
+## 17. 服务器迁移前的核心原则
+
+“零丢数据”不是只做一次备份，而是保证最终备份以后旧站不再产生新写入。最适合小项目的是短暂停止写入：
+
+1. 新服务器提前装好环境，部署与旧服务器完全相同的 Git commit。
+2. 用最近备份在新服务器做一次恢复演练。
+3. 正式切换时停止旧后端，阻止注册、改资料和管理员操作。
+4. 立即生成最终备份并记录 SHA-256。
+5. 恢复新库、核对数据、启动新后端。
+6. 验收通过后切 DNS；旧站保持停止状态，保留至少 14 天。
+
+绝对不要让旧、新两套网站同时写各自数据库，否则数据会分叉，之后无法简单合并。
+
+## 18. 进阶：完整迁移到另一台 Ubuntu 24.04 服务器
+
+### 18.1 提前一天
+
+- 将 DNS TTL 调低，例如 300 秒。
+- 按第 3～13 节准备新服务器，但先不要切域名。
+- 在新服务器记录代码版本：
+
+```bash
+cd /srv/personalink
+git rev-parse HEAD
+```
+
+- 在旧服务器执行相同命令，两个 commit 必须一致。
+- 用旧备份进行一次预恢复和功能验收。
+
+### 18.2 正式切换：停止旧站写入
+
+在旧服务器执行：
+
+```bash
+sudo systemctl stop personalink
+sudo systemctl is-active personalink
+```
+
+结果应为 `inactive`。此刻开始不要重新启动旧后端。
+
+### 18.3 生成最终备份
+
+仍在旧服务器：
+
+```bash
+sudo install -m 700 /srv/personalink/scripts/backup-personalink.sh /usr/local/sbin/backup-personalink
+sudo BACKUP_LABEL=FINAL-personalink RETENTION_DAYS=36500 /usr/local/sbin/backup-personalink
+FINAL_ARCHIVE=$(sudo find /var/backups/personalink -maxdepth 1 -type f -name 'FINAL-personalink-*.sql.gz' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)
+sudo bash -c 'cd "$(dirname "$1")"; sha256sum -c "$(basename "$1").sha256"; gzip -t "$(basename "$1")"; cat "$(basename "$1").git-commit"' bash "$FINAL_ARCHIVE"
+```
+
+保存输出的 SHA-256 和 Git commit，并记录旧库完整校验结果：
+
+```bash
+cd /srv/personalink/backend
+npm run db:verify
+```
+
+### 18.4 把备份复制到新服务器
+
+`/var/backups/personalink` 权限为 `700`，普通 SSH 用户不能直接 SCP。先在旧服务器创建只供当前 SSH 用户读取的临时传输目录：
+
+```bash
+install -d -m 700 /tmp/personalink-transfer
+sudo find /tmp/personalink-transfer -mindepth 1 -maxdepth 1 -type f -delete
+sudo cp "$FINAL_ARCHIVE" "$FINAL_ARCHIVE.sha256" "$FINAL_ARCHIVE.git-commit" "$FINAL_ARCHIVE.inventory.json" /tmp/personalink-transfer/
+sudo chown -R "$USER":"$USER" /tmp/personalink-transfer
+ls -lh /tmp/personalink-transfer
+```
+
+最容易理解的方式是在自己的电脑中转。下面两条命令在 Windows PowerShell 执行：
+
+```powershell
+scp -r ubuntu@旧服务器IP:/tmp/personalink-transfer .
+scp -r .\personalink-transfer ubuntu@新服务器IP:/tmp/
+```
+
+在新服务器校验 SHA-256、gzip 和代码版本：
+
+```bash
+cd /tmp/personalink-transfer
+test "$(find . -maxdepth 1 -type f -name '*.sql.gz' | wc -l)" -eq 1
+TRANSFER_ARCHIVE=$(find "$PWD" -maxdepth 1 -type f -name '*.sql.gz' -print -quit)
+sha256sum -c "$(basename "$TRANSFER_ARCHIVE").sha256"
+gzip -t "$TRANSFER_ARCHIVE"
+cat "$TRANSFER_ARCHIVE.git-commit"
+cat "$TRANSFER_ARCHIVE.inventory.json"
+cd /srv/personalink
+EXPECTED_COMMIT=$(cat "$TRANSFER_ARCHIVE.git-commit")
+test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT" && echo '代码版本一致'
+```
+
+`sha256sum` 必须显示 `OK`，`gzip -t` 必须无错误，新服务器 `git rev-parse HEAD` 必须与 `.git-commit` 内容完全一致。任一项不满足都不要删除新库或开始恢复。
+
+### 18.5 恢复到新数据库
+
+先停止新后端：
+
+```bash
+sudo systemctl stop personalink
+```
+
+下面会删除并重建新服务器的 `personalink` 数据库。只有确认当前登录的是新服务器、备份校验值正确后才能执行：
+
+```bash
+# 删除新服务器上的现有测试数据并重建空库；数据库账号授权仍会保留
+sudo mysql -e "DROP DATABASE IF EXISTS personalink; CREATE DATABASE personalink CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+
+# 解压和导入任一步骤失败时都返回错误
+set -o pipefail
+TRANSFER_ARCHIVE=$(find /tmp/personalink-transfer -maxdepth 1 -type f -name '*.sql.gz' -print -quit)
+gunzip -c "$TRANSFER_ARCHIVE" | sudo mysql --binary-mode=1 personalink
+```
+
+启动并校验：
+
+```bash
+sudo systemctl start personalink
+sleep 2
+cd /srv/personalink/backend
+npm run db:verify --silent | tee /tmp/personalink-transfer/restored.inventory.json
+diff -u "$TRANSFER_ARCHIVE.inventory.json" /tmp/personalink-transfer/restored.inventory.json
+curl -fsS http://127.0.0.1:3003/health && echo
+```
+
+将新库输出中的班级、用户、学生、同义词、标准爱好、已存头像数和头像总字节数与第 18.3 节旧库输出逐项比较。再通过新服务器 IP 临时验收登录、头像、名单、CSV、照片墙和搜索。全部通过后才允许切换域名。
+
+### 18.6 切换域名
+
+在域名控制台把 A 记录从旧 IP 改为新 IP。等待解析时可在自己电脑检查：
+
+```powershell
+nslookup 你的域名
+```
+
+解析到新 IP 后访问 HTTPS 并完成第 14 节清单。旧服务器保持后端停止，不要马上销毁。
+
+迁移全部验收通过后，删除旧、新服务器 `/tmp/personalink-transfer` 中的临时传输副本；正式备份仍保留在受保护的备份位置和异机存储中：
+
+```bash
+sudo find /tmp/personalink-transfer -mindepth 1 -maxdepth 1 -type f -delete
+sudo rmdir /tmp/personalink-transfer
+```
+
+### 18.7 迁移失败时回滚
+
+1. 先停止新服务器后端，防止继续产生新数据。
+2. 将 DNS 改回旧服务器 IP。
+3. 确认访问已回到旧服务器后，再启动旧后端。
+4. 分析新服务器日志，修复后重新安排迁移窗口。
+
+回滚过程中同样只能有一个数据库接受写入。
+
+## 19. 已上线空站补导演示数据，或导入其他 JSON
+
+如果已经按空站点完成部署，后来才发现需要仓库中的模拟班级和学生，可按本节补导。导入会替换当前 MySQL 业务表，所以先停后端并备份当前数据库：
+
+```bash
+sudo systemctl stop personalink
+sudo install -d -m 700 /var/backups/personalink
+sudo bash -c 'set -o pipefail; umask 077; mysqldump --single-transaction --routines --triggers --hex-blob --no-tablespaces --default-character-set=utf8mb4 personalink | gzip > "/var/backups/personalink/before-demo-import-$(date +%F-%H%M%S).sql.gz"'
+cd /srv/personalink
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= pull --ff-only origin main
+cd /srv/personalink/backend
+npm ci --omit=dev
+npm run db:inspect-json
+read -rsp '请为演示管理员设置新密码（至少 8 位）: ' PERSONALINK_ADMIN_PASSWORD
+echo
+ADMIN_INITIAL_PASSWORD="$PERSONALINK_ADMIN_PASSWORD" npm run db:migrate-json
+unset PERSONALINK_ADMIN_PASSWORD
+npm run db:verify
+sudo systemctl start personalink
+sleep 2
+curl -fsS http://127.0.0.1:3003/health && echo
+curl -fsS http://127.0.0.1:3003/api/classes | node -e "let input='';process.stdin.on('data',chunk=>input+=chunk).on('end',()=>{const rows=JSON.parse(input);console.log('API 班级数:',rows.length);if(rows.length!==3)process.exit(1)})"
+curl -fsS http://127.0.0.1:3003/api/photowall | node -e "let input='';process.stdin.on('data',chunk=>input+=chunk).on('end',()=>{const result=JSON.parse(input);console.log('照片墙学生数:',result.data?.length);if(!result.success||result.data?.length!==42)process.exit(1)})"
+```
+
+核对 `classes: 3`、`users: 43` 和健康检查成功后，再刷新网页。班级和学生来自 MySQL API；照片墙应显示 42 名学生及本地默认头像。正常代码更新流程已经构建过前端时无需仅为数据导入再次构建。
+
+如果导入的是仓库以外的其他 JSON，先使用 SCP 单独传到服务器。下面命令在自己的 Windows PowerShell 执行：
+
+```powershell
+scp .\backend\db.json ubuntu@服务器IP:/tmp/personalink-db.json
+```
+
+然后在服务器先核验、再导入；同样必须事先停服和备份：
+
+```bash
+cd /srv/personalink/backend
+JSON_SOURCE=/tmp/personalink-db.json npm run db:inspect-json
+read -rsp '请为管理员设置新密码（至少 8 位）: ' PERSONALINK_ADMIN_PASSWORD
+echo
+JSON_SOURCE=/tmp/personalink-db.json ADMIN_INITIAL_PASSWORD="$PERSONALINK_ADMIN_PASSWORD" npm run db:migrate-json
+unset PERSONALINK_ADMIN_PASSWORD
+npm run db:verify
+sudo rm /tmp/personalink-db.json
+```
+
+导入后登录管理员、修改密码，并核对班级人数和头像。仓库自带的 `backend/db.json` 只能保存明确确认过的模拟数据；真实用户快照、`.env` 和 SQL 备份不得提交 GitHub。
+
+## 20. 常见故障
+
+### Git clone 要求用户名、密码，或者返回 403
+
+当前仓库是公开仓库，部署时不需要登录 GitHub。看到用户名提示时按 `Ctrl+C` 取消，然后执行：
+
+```bash
+# 如果失败操作留下的是空目录，先安全移除空目录
+sudo rmdir /srv/personalink 2>/dev/null || true
+
+# 忽略错误缓存凭据，以匿名方式重新克隆
+GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone --branch main --single-branch https://github.com/Abner199/PersonaLink_MySQL_20260821.git /srv/personalink
+```
+
+不要在服务器中填写 GitHub 登录密码，也不要把 Token 拼进仓库 URL。
+
+### 浏览器显示 502 Bad Gateway
+
+```bash
+sudo systemctl status personalink --no-pager
+sudo journalctl -u personalink -n 100 --no-pager
+curl http://127.0.0.1:3003/health
+```
+
+常见原因是 `.env` 密码错误、MySQL 未启动或后端启动失败。
+
+### 页面能开，但刷新子页面变成 404
+
+确认 Nginx 的 `location /` 中有：
+
+```nginx
+try_files $uri $uri/ /index.html;
+```
+
+### API 请求失败
+
+确认 `location ^~ /api/` 的 `proxy_pass` 是 `http://127.0.0.1:3003`，末尾没有多余路径；再执行 `sudo nginx -t`。
+
+### 发布在 `[8/9]` 提示 gzip directive is duplicate
+
+这是旧附加配置与 Ubuntu 默认 gzip 声明重复，不是数据库错误。v1.0.3 已修复；旧版现场可先把附加文件改为不会被 Nginx 加载的名称，再检查配置并完成服务启动：
+
+```bash
+# 改名保留旧配置，不删除文件，也不访问 MySQL。
+sudo mv /etc/nginx/conf.d/personalink-gzip.conf /etc/nginx/conf.d/personalink-gzip.conf.disabled
+sudo nginx -t
+sudo systemctl daemon-reload
+sudo systemctl restart personalink
+sudo systemctl reload nginx
+curl -fsS http://127.0.0.1:3003/health && echo
+curl -fsS http://127.0.0.1:3003/api/version && echo
+```
+
+若发布日志已经通过 `[7/9]`，表示升级前后数据库清单一致；上述操作只恢复 Nginx 与后端服务。之后部署 v1.0.3 会用无指令兼容文件覆盖旧路径，避免问题再次发生。
+
+### MySQL 提示 Access denied
+
+检查 `.env` 的数据库用户名和密码，并在 MySQL 中确认账号为 `'personalink'@'localhost'`。不要为解决问题把 3306 开到公网。
+
+### 部署成功但班级和学生都是空的
+
+前端不内置班级和学生，它只显示 MySQL API 返回的数据。先执行 `cd /srv/personalink/backend && npm run db:verify`；如果只有一个管理员且 `classes` 为 `0`，说明此前选择了真正空站点。需要演示数据时按第 19 节停服、备份并补导，不需要修改或重新构建前端。
+
+### 照片墙有学生，但显示的是默认头像
+
+这是当前教学模拟数据的预期结果。42 名学生没有自定义照片，前端会使用仓库自带的本地默认头像；这不表示头像文件丢失。用户之后上传头像时，图片会写入 MySQL 的 `users.avatar` 并替换默认头像。
+
+### Git pull 提示本地文件冲突
+
+先执行 `git status`。服务器上不应直接改源代码；`.env` 不受 Git 管理。不要在不理解后果时使用 `git reset --hard`。
+
+## 21. 官方资料
+
+- [Ubuntu：安装与配置 MySQL](https://ubuntu.com/server/docs/install-and-configure-a-mysql-server)
+- [Ubuntu：UFW 防火墙](https://ubuntu.com/server/docs/security-firewall/)
+- [NodeSource：Ubuntu 安装 Node.js](https://github.com/nodesource/distributions)
+- [Nginx：反向代理模块](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)
+- [Certbot：Nginx HTTPS 安装说明](https://certbot.eff.org/instructions?ws=nginx&os=snap)
+- [GitHub：通过 SSH 连接 GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
