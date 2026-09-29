@@ -1,0 +1,14 @@
+[Unit]
+Description=PersonaLink hourly PostgreSQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/srv/personalink
+Environment=BACKUP_ENV_FILE=/etc/personalink/backup.env
+ExecStart=/srv/personalink/scripts/backup-db.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
