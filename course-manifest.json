@@ -1,0 +1,9 @@
+{
+  "branch": "p4-lesson-03",
+  "project": "p4",
+  "lesson": 3,
+  "mode": "standard",
+  "previous": "p4-lesson-02",
+  "add_paths": [],
+  "course_repository": "https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git"
+}
