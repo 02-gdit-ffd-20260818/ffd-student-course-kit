@@ -1,0 +1,11 @@
+{
+  "branch": "p1-l02-standalone-v3.0",
+  "project": "p1",
+  "lesson": 2,
+  "mode": "standard",
+  "previous": "p1-l01-standalone-v3.0",
+  "add_paths": [
+    "lesson-02-task.css"
+  ],
+  "course_repository": "https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git"
+}
