@@ -1,0 +1,122 @@
+--- 学生起步/lesson-13/backend/scripts/db-status.js
++++ 本课完成后/backend/scripts/db-status.js
+@@ -5,21 +5,7 @@
+   console.log('SQLite 数据库状态');
+   console.log(`路径: ${info.path}`);
+   console.log(`日志模式: ${info.journalMode}`);
+-    // ============ 第13课 TODO 03（简单）：让 db:status 说清楚库里有什么 ============
+-  // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-  // 终端里看得到的结果：npm run db:status 打印出一张表，
+-  // 列出每张表各有多少行——**这是你确认"数据真的进去了"的唯一手段**。
+-  //
+-  // 本任务要补全：用 console.table(summary) 把统计结果打印成表格。
+-  //   console.table 比 console.log 好在哪：它会自动对齐成表格，
+-  //   几十行数据一眼能扫完。
+-  //
+-  // 这一课之后每次改动数据库，都该先跑一次 db:status 看看现状。
+-  // **不要靠猜**——猜错的代价是把好数据覆盖掉。
+-  // ============================================================
+-  console.log(info.counts);
++  console.table(info.counts);
+ } finally {
+   closeDB();
+ }
+--- 学生起步/lesson-13/backend/src/database.js
++++ 本课完成后/backend/src/database.js
+@@ -65,59 +65,17 @@
+       extra_json TEXT NOT NULL DEFAULT '{}'
+     );
+
+-        -- ============ 第13课 TODO 01（极简单）：给 users 表补上约束 ============
+-    -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-    -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-    -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-    -- 第 12 课用 JSON 文件时，"邮箱不能重复"只能靠代码自己查一遍。
+-    -- 换成数据库之后，这件事可以**交给数据库自己保证**。
+-    --
+-    -- 页面上看得到的结果：用同一个邮箱注册两次，第二次被挡住——
+-    -- 而且**就算绕过后端代码直接写数据库，也挡得住**。
+-    --
+-    -- 本任务要补全：把下面四处改成真正的约束：
+-    --   id TEXT PRIMARY KEY          主键，唯一且不能为空
+-    --   name TEXT NOT NULL
+-    --   email TEXT NOT NULL UNIQUE   不能为空、不能重复
+-    --   password TEXT NOT NULL
+-    --
+-    -- **和第 12 课对照着看**：那时候你写了一段 find 来查重复，
+-    -- 现在一个 UNIQUE 就够了，而且更可靠——
+-    -- 代码可能有别的入口绕过去，约束没有。
+-    --
+-    -- 怎么亲眼看到：npm run db:status 会打印表结构。
+-    -- ====================================================
+     CREATE TABLE IF NOT EXISTS users (
+-      id TEXT,
++      id TEXT PRIMARY KEY,
+       username TEXT,
+       name TEXT,
+-      email TEXT,
+-      password TEXT,
++      email TEXT NOT NULL UNIQUE,
++      password TEXT NOT NULL,
+       avatar TEXT,
+       bio TEXT,
+       hobbies_json TEXT,
+       role TEXT,
+-            -- ============ 第13课 TODO 02（简单）：班级外键 ============
+-      -- 【参数拆解】REFERENCES 表名(列名) 指明外键对应哪张表哪一列；ON DELETE CASCADE 表示删除被引用的父记录时一并删除子记录，不是删除整张子表。
+-      -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-      -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-      -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-      -- 第 12 课 已写好的代码 你手写了一段"检查班级是否存在"。
+-      -- 数据库可以自动做这件事。
+-      --
+-      -- 页面上看得到的结果：试着删掉一个**还有学生**的班级，
+-      -- 会被拒绝，而不是把那些学生变成没有班级的孤儿。
+-      --
+-      -- 本任务要补全：改成 TEXT REFERENCES classes(id) ON DELETE RESTRICT
+-      --   REFERENCES classes(id)  这一列的值必须在 classes 表里存在
+-      --   ON DELETE RESTRICT      被指向的班级**有人在用就不许删**
+-      --
+-      -- 对比第 09 课（项目 2）用的 ON DELETE CASCADE：
+-      --   CASCADE  = 连带删除（评论跟着文章走，合理）
+-      --   RESTRICT = 拦住不让删（学生不该跟着班级一起消失）
+-      -- **选哪个取决于业务含义，不是技术偏好。**
+-      -- ==========================================
+-      class_id TEXT,
++      class_id TEXT REFERENCES classes(id) ON DELETE RESTRICT,
+       profile_json TEXT,
+       created_at TEXT NOT NULL,
+       updated_at TEXT,
+@@ -371,29 +329,7 @@
+   const database = openDatabase();
+   return {
+     path: sqlitePath,
+-          // ============ 第13课 TODO 04（中等）：报告里要能看到日志模式 ============
+-      // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-      // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-      // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-      // 终端里看得到的结果：npm run db:status 打印出
+-      // 「日志模式: wal」——这是确认 已写好的代码 真的生效的唯一办法。
+-      //
+-      // 本任务要补全：查一下当前的日志模式并放进报告：
+-      //   database.prepare('PRAGMA journal_mode').get().journal_mode
+-      //   PRAGMA 不带值就是"查询当前设置"，带值才是"修改设置"。
+-      //
+-      // **为什么这件事值得单独报告出来**：WAL 模式会额外产生
+-      // .sqlite-wal 和 .sqlite-shm 两个文件，最新的写入可能还在 -wal 里
+-      // 没合并进主文件。**备份时只复制主文件会丢数据。**
+-      //
+-      // 所以备份 SQLite 的正确做法是二选一：
+-      //   1) 先执行 PRAGMA wal_checkpoint(TRUNCATE) 把 WAL 合并进主文件，再复制
+-      //   2) 把 .sqlite、.sqlite-wal、.sqlite-shm 三个文件一起复制
+-      //
+-      // 做完一定要**演练一次恢复**：备份 → 删库 → 恢复 → db:status 数字对得上。
+-      // 没有验证过恢复流程的备份，等于没有备份。
+-      // ========================================================
+-      journalMode: 'unknown',
++    journalMode: database.prepare('PRAGMA journal_mode').get().journal_mode,
+     counts: {
+       classes: database.prepare('SELECT COUNT(*) AS count FROM classes').get().count,
+       users: database.prepare('SELECT COUNT(*) AS count FROM users').get().count,
