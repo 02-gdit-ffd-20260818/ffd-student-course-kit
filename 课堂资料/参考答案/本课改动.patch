@@ -1,0 +1,133 @@
+--- 学生起步/p5-lesson-03/src/App.vue
++++ 本课完成后/src/App.vue
+@@ -68,27 +68,10 @@
+ // 当前这一句变了，就把它滚到可视区中间。
+ // **注意 block: 'center' 而不是默认的 'start'**：歌词滚到最顶上很难读，
+ // 人眼习惯盯着中间那一行。
+-// ============ P5 第3课 任务 TODO 02（极简单）：歌词自动滚动 ============
+-// 【参数拆解】watch(被观察的值, 回调) 在值变化时执行回调；回调参数通常是新值和旧值。不要把回调直接调用后的结果当成第二个参数。
+-// 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-// 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-// 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-// 页面上看得到的结果：当前那句已经高亮了，但**唱到后面就看不见了**，
+-// 要自己手动往下滚。做完之后它自己滚，当前句一直在中间。
+-//
+-// 本任务要补全：
+-//   watch(activeLine, () => {
+-//     if (!activeLineEl || !lyricBox.value) return
+-//     activeLineEl.scrollIntoView({ block: 'center', behavior: 'smooth' })
+-//   })
+-//
+-// **`block: 'center'` 是关键**。默认值是 'start'，那样当前句会滚到最顶上——
+-// 人眼习惯盯着中间那一行，滚到顶上反而不好读。**这一个参数的差别，体验差很多。**
+-//
+-// `behavior: 'smooth'` 是平滑滚动。注意样式表里配套写了
+-// @media (prefers-reduced-motion: reduce) 把它关掉——
+-// **有些人对动效敏感，系统里设置了"减少动态效果"，我们要尊重这个设置。**
+-// ==========================================================
++watch(activeLine, () => {
++  if (!activeLineEl || !lyricBox.value) return
++  activeLineEl.scrollIntoView({ block: 'center', behavior: 'smooth' })
++})
+
+ async function loadLyrics(track) {
+   const token = ++lyricToken
+@@ -280,29 +263,11 @@
+   playAt(prevIndexByMode(queue.items.length, queue.currentIndex))
+ }
+
+-// ============ P5 第3课 任务 TODO 04（中等）：进度条要能点着跳 ============
+-// 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-// 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-// 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-// 页面上看得到的结果：进度条现在只能看，点它没反应。
+-// 做完之后点哪里跳到哪里。
+-//
+-// 要解决的问题是：**用户点的是像素位置，播放器要的是秒数**。
+-//
+-// 本任务要补全：
+-//   1) event.currentTarget.getBoundingClientRect() 拿到进度条在屏幕上的位置和宽度
+-//   2) (event.clientX - box.left) / box.width  算出点击位置占全长的比例
+-//   3) 用 Math.min(1, Math.max(0, ...)) 把比例夹在 0~1 之间
+-//   4) audio.currentTime = 比例 × 总时长
+-//
+-// 第 3 步不能省：**用户可能点在进度条边缘之外一两个像素**，
+-// 算出来是 -0.01 或 1.02，直接赋值给 currentTime 会报错或跳到奇怪的地方。
+-//
+-// 这个"夹取"的写法很常用，记住这个形状：
+-//   Math.min(上限, Math.max(下限, 值))
+-// ================================================================
+-function seek() {
+-  /* 待实现 */
++function seek(event) {
++  if (!duration.value) return
++  const box = event.currentTarget.getBoundingClientRect()
++  const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width))
++  audio.value.currentTime = ratio * duration.value
+ }
+
+ function onTimeUpdate(event) {
+@@ -310,31 +275,10 @@
+   duration.value = event.target.duration || queue.current?.duration || 0
+ }
+
+-// ============ P5 第3课 任务 TODO 01（极简单）：一首播不出来，别卡在那儿 ============
+-// 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-// 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-// 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-// 页面上看得到的结果：公开音源里总有几首是失效的。
+-// 现在碰上就**卡住不动**，用户得自己去点下一首。
+-// 做完之后：提示一句，然后自动跳过。
+-//
+-// 本任务要补全：
+-//   queue.playerState = 'error'
+-//   notice.value = '这一首播不出来（音源可能失效了），已自动跳到下一首'
+-//   setTimeout(() => playNext(true), 800)
+-//
+-// **为什么要等 800 毫秒再跳**：立刻跳的话用户根本看不清发生了什么，
+-// 会觉得"歌自己乱换"。留一点时间让提示被看见。
+-//
+-// 这个函数接在 <audio> 的 @error 上。顺便记一下 audio 元素的几个事件：
+-//   play / pause     开始播 / 暂停
+-//   ended            自然播完
+-//   timeupdate       播放进度变了（每秒好几十次）
+-//   loadedmetadata   时长等信息拿到了
+-//   error            加载或解码失败
+-// ====================================================================
+ function onError() {
+   queue.playerState = 'error'
++  notice.value = '这一首播不出来（音源可能失效了），已自动跳到下一首'
++  setTimeout(() => playNext(true), 800)
+ }
+
+ watch(volume, value => {
+@@ -396,27 +340,9 @@
+ )
+
+ /* ---------------- 键盘快捷键 ---------------- */
+-// ============ P5 第3课 任务 TODO 03（简单）：键盘快捷键 ============
+-// 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-// 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-// 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-// 页面上看得到的结果：现在按空格没反应。
+-// 做完之后：空格播放/暂停、← → 快退快进、Shift+← → 切歌、M 静音、R 换播放模式。
+-//
+-// 本任务要补全：补上第一行那个判断——
+-//   const tag = event.target.tagName
+-//   if (tag === 'INPUT' || tag === 'TEXTAREA') return
+-//
+-// **不加这三行会出大问题**：用户在搜索框里打一个空格，歌就暂停了。
+-// **全局快捷键必须先判断焦点在哪里**，这是很常见的疏漏。
+-//
+-// 还要注意 event.preventDefault()：空格在页面上的默认行为是**向下滚动**，
+-// 不拦住的话按一次空格，歌暂停了、页面也跳了。
+-//
+-// 最后看一眼 onUnmounted 里的 removeEventListener：
+-// **加了监听就要在组件销毁时摘掉**，否则组件没了监听还在，这叫内存泄漏。
+-// ==========================================================
+ function onKey(event) {
++  const tag = event.target.tagName
++  if (tag === 'INPUT' || tag === 'TEXTAREA') return
+   if (event.code === 'Space') {
+     event.preventDefault()
+     togglePlay()
