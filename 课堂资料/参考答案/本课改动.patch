@@ -1,0 +1,212 @@
+--- 学生起步/lesson-08/server/blog-app.js
++++ 本课完成后/server/blog-app.js
+@@ -196,27 +196,9 @@
+   // 游客只看到已发布文章；管理员可以看到草稿，权限判断必须放在后端。
+   app.get('/api/articles', async (req, res) => {
+     const rows = await db.query(
+-      // ============ 第08课 TODO 02（简单）：草稿不能给游客看见 ============
+-      // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-      // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-      // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-      // 现在所有人都能看到全部文章，包括还没写完的草稿。
+-      //
+-      // 页面上看得到的结果：用管理员账号登录，首页能看到草稿；
+-      // **退出登录再刷新，草稿就消失了**。这是本课最直观的一个效果。
+-      //
+-      // 本任务要补全：按角色给出两条不同的 SQL：
+-      //   管理员：SELECT * FROM articles ORDER BY id
+-      //   其他人：SELECT * FROM articles WHERE status='published' ORDER BY id
+-      //
+-      // **权限判断必须放在后端。** 前端"把草稿藏起来不显示"是没用的——
+-      // 数据已经发到浏览器了，F12 一看就全在。
+-      // 真正的做法是：不该给的数据，一开始就不要查出来。
+-      //
+-      // 怎么亲眼看到：F12 → Network → /api/articles 的响应里，
+-      // 游客身份下**根本没有草稿那几条**。
+-      // ====================================================
+-      'SELECT * FROM articles ORDER BY id',
++      req.user?.role === 'admin'
++        ? 'SELECT * FROM articles ORDER BY id'
++        : "SELECT * FROM articles WHERE status='published' ORDER BY id",
+     )
+     res.json({ data: rows.map(article) })
+   })
+@@ -248,29 +230,9 @@
+             JSON.stringify(a.media || []),
+           ]
+         const sql =
+-          // ============ 第08课 TODO 04（中等）：把文章真的写进数据库 ============
+-          // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-          // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-          // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-          // 页面上看得到的结果：在管理页新建一篇文章点保存，
+-          // **列表里真的多出一篇**；重启后端再看，它还在。
+-          //
+-          // 本任务要补全：补全两条参数化 SQL（新增用 INSERT，修改用 UPDATE）：
+-          //   POST：INSERT INTO articles(九个列名)
+-          //         VALUES($1,...,$9) RETURNING *
+-          //   PUT ：UPDATE articles SET 九个列=$1..$9
+-          //         WHERE id=$10 RETURNING *
+-          //
+-          // 三个要点：
+-          //   1) $1—$9 与上面 values 数组**逐项对应**，顺序不能乱
+-          //   2) RETURNING * 让数据库把写完之后那一行返回给我们，
+-          //      省掉一次额外的 SELECT
+-          //   3) PUT 多一个 $10 是 id，所以上面有一行
+-          //      if (method === 'put') values.push(Number(req.params.id))
+-          //
+-          // **绝对不要用字符串拼接 SQL。** 标题里写一段 SQL 就能操作你的数据库。
+-          // ====================================================
+-          'SELECT 1'
++          method === 'post'
++            ? 'INSERT INTO articles(slug,title,summary,content_json,tags_json,status,author,published_at,media_json) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *'
++            : 'UPDATE articles SET slug=$1,title=$2,summary=$3,content_json=$4,tags_json=$5,status=$6,author=$7,published_at=$8,media_json=$9 WHERE id=$10 RETURNING *'
+         if (method === 'put') values.push(Number(req.params.id))
+         const [row] = await db.query(sql, values)
+         if (!row) return fail(res, 404, '文章不存在')
+@@ -281,27 +243,12 @@
+     const rows = await db.query('DELETE FROM articles WHERE id=$1 RETURNING id', [
+       Number(req.params.id),
+     ])
+-    // ============ 第08课 TODO 05（中等）：删掉不存在的东西要说清楚 ============
+-    // 【参数拆解】fail(res, 状态码, 提示文字) 是项目提供的响应函数；res 代表本次响应，400 是输入不合规则，401 是未登录，403 是无权操作，409 是资源冲突。前面的 return 会立刻结束当前处理函数。
+-    // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-    // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-    // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-    // 页面上看得到的结果：在管理页删掉一篇文章，**列表里立刻少一篇**；
+-    // 如果这篇已经被别人删过了，提示「文章不存在」而不是假装成功。
+-    //
+-    // 本任务要补全：补上两句
+-    //   if (!rows.length) return fail(res, 404, '文章不存在')
+-    //   res.sendStatus(204)
+-    //
+-    // 上面那条 DELETE 用了 RETURNING id：真的删掉了才会返回一行，
+-    // 什么都没删返回空数组——靠它就能分辨"删成功"和"本来就没有"。
+-    //
+-    // 204 是"成功，但没有内容要返回"。删除成功后没什么好给的，
+-    // 用 204 比返回 200 加一个空对象更准确。
+-    // ========================================================
++    if (!rows.length) return fail(res, 404, '文章不存在')
+     res.sendStatus(204)
+   })
+-  // ============ 第09课任务 02（后续预留，本课不要修改）（简单）：草稿不能被评论 ============
++  // ============ 第09课 TODO 02（简单）：草稿不能被评论 ============
++  // 【参数拆解】db.query(语句, 参数数组) 执行数据库查询；SQL 中的 $1 对应数组第一个值，$2 对应第二个值。await 等待查询结束，返回的数组长度为 0 表示没有匹配行；不要把用户输入直接拼进 SQL。
++  // 【参数拆解】Number(值) 尝试转换成数字；不是数字时得到 NaN。字符串编号和数字编号直接做严格相等比较会不相等，比较前要统一类型并检查有效范围。
+   // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+   // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+   // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+@@ -339,7 +286,10 @@
+   })
+   app.post('/api/articles/:id/comments', signed, async (req, res) => {
+     if (!(await published(req.params.id))) return fail(res, 404, '文章不存在')
+-    // ============ 第09课任务 03（后续预留，本课不要修改）（简单）：空评论和超长评论都要挡 ============
++    // ============ 第09课 TODO 03（简单）：空评论和超长评论都要挡 ============
++    // 【参数拆解】fail(res, 状态码, 提示文字) 是项目提供的响应函数；res 代表本次响应，400 是输入不合规则，401 是未登录，403 是无权操作，409 是资源冲突。前面的 return 会立刻结束当前处理函数。
++    // 【参数拆解】typeof 值 得到类型名称，字符串类型写作 string。先判断类型，再读取 length 等属性，避免错误类型导致异常；length 是长度，不是最大允许值。
++    // 【参数拆解】字符串.trim() 去掉两端空白，但不删除中间的空格；空字符串为假。检查非空时先去空白，才能挡住只输入空格的情况。
+     // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+     // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+     // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+@@ -361,7 +311,9 @@
+       req.user.sub,
+     ])
+     if (Number(count[0].total) >= 200) return fail(res, 429, '评论数量已达体验上限')
+-    // ============ 第09课任务 04（后续预留，本课不要修改）（中等）：把评论写进数据库 ============
++    // ============ 第09课 TODO 04（中等）：把评论写进数据库 ============
++    // 【参数拆解】db.query(语句, 参数数组) 执行数据库查询；SQL 中的 $1 对应数组第一个值，$2 对应第二个值。await 等待查询结束，返回的数组长度为 0 表示没有匹配行；不要把用户输入直接拼进 SQL。
++    // 【参数拆解】Number(值) 尝试转换成数字；不是数字时得到 NaN。字符串编号和数字编号直接做严格相等比较会不相等，比较前要统一类型并检查有效范围。
+     // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+     // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+     // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+--- 学生起步/lesson-08/server/blog-db.js
++++ 本课完成后/server/blog-db.js
+@@ -17,44 +17,21 @@
+   )`,
+   `CREATE TABLE IF NOT EXISTS articles (
+     id           INTEGER PRIMARY KEY AUTOINCREMENT,
+-    -- ============ 第08课 TODO 01（极简单）：给文章表加上约束 ============
+-    -- 【参数拆解】CHECK(条件) 要求每一行满足条件；NOT NULL 禁止空值，UNIQUE 禁止重复。DEFAULT 只在未提供该列值时使用默认值，不会把显式传入的 NULL 自动修正。
+-    -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-    -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-    -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-    -- 现在这张表没有唯一 slug，也不限制状态，草稿和已发布分不清。
+-    --
+-    -- 页面上看得到的结果：做完之后，两篇文章用同一个链接名会被拒绝；
+-    -- status 只能是 draft 或 published 两种，写错了数据库直接不收。
+-    --
+-    -- 本任务要补全：按手册补全九列：
+-    --   slug         TEXT NOT NULL UNIQUE                文章地址不能重复
+-    --   title/summary/content_json/tags_json  TEXT NOT NULL
+-    --   status       TEXT NOT NULL
+-    --                CHECK(status IN ('draft','published'))
+-    --   author/published_at  TEXT NOT NULL
+-    --   media_json   TEXT NOT NULL DEFAULT '[]'          默认空数组，不是 NULL
+-    --
+-    -- 想一想：为什么正文用 JSON 文本存在一列里，而不是再建一张"段落表"？
+-    -- 因为正文永远是整篇一起读、整篇一起改，从来不需要"查出第 3 段"。
+-    -- **按使用方式设计表结构**，不是越拆越对。
+-    --
+-    -- 怎么亲眼看到：npm run db:inspect 的建表语句里能看到 UNIQUE 和 CHECK。
+-    -- 改了建表语句记得删掉 var/blog.sqlite 重启后端，否则不生效。
+-    -- ==================================================
+-    slug         TEXT,
+-    title        TEXT,
+-    summary      TEXT,
+-    content_json TEXT,
+-    tags_json    TEXT,
+-    status       TEXT,
+-    author       TEXT,
+-    published_at TEXT,
+-    media_json   TEXT
++    slug         TEXT NOT NULL UNIQUE,
++    title        TEXT NOT NULL,
++    summary      TEXT NOT NULL,
++    content_json TEXT NOT NULL,
++    tags_json    TEXT NOT NULL,
++    status       TEXT NOT NULL CHECK(status IN ('draft','published')),
++    author       TEXT NOT NULL,
++    published_at TEXT NOT NULL,
++    media_json   TEXT NOT NULL DEFAULT '[]'
+   )`,
+   `CREATE TABLE IF NOT EXISTS comments (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+-    -- ============ 第09课任务 01（后续预留，本课不要修改）（极简单）：评论表和它的两个外键 ============
++    -- ============ 第09课 TODO 01（极简单）：评论表和它的两个外键 ============
++    -- 【参数拆解】CHECK(条件) 要求每一行满足条件；NOT NULL 禁止空值，UNIQUE 禁止重复。DEFAULT 只在未提供该列值时使用默认值，不会把显式传入的 NULL 自动修正。
++    -- 【参数拆解】REFERENCES 表名(列名) 指明外键对应哪张表哪一列；ON DELETE CASCADE 表示删除被引用的父记录时一并删除子记录，不是删除整张子表。
+     -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+     -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+     -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+--- 学生起步/lesson-08/server/services/articleInput.js
++++ 本课完成后/server/services/articleInput.js
+@@ -19,25 +19,10 @@
+   // 直接 .trim() 会抛异常，那就成了 500 而不是该有的 400。
+   const title = typeof input.title === 'string' ? input.title.trim() : ''
+   const summary = typeof input.summary === 'string' ? input.summary.trim() : ''
+-  // ============ 第08课 TODO 03（简单）：标题和摘要必须校验 ============
+-  // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-  // 现在标题可以是空的，也可以是一万字——存进去之后列表页会被撑爆。
+-  //
+-  // 页面上看得到的结果：文章编辑页把标题清空点保存，
+-  // **标题输入框下方出现红色提示**，而不是保存成功。
+-  //
+-  // 本任务要补全：补上四条判断：
+-  //   标题为空      → errors.title = 'title required'
+-  //   标题超过 60   → errors.title = 'title too long'
+-  //   摘要为空      → errors.summary = 'summary required'
+-  //   摘要超过 160  → errors.summary = 'summary too long'
+-  //
+-  // 注意错误是**按字段收集**到 errors 对象里，而不是遇到第一个就返回。
+-  // 这样前端能把每条错误标在对应的输入框上，用户一次就能全改完，
+-  // 不用"改一个、保存、又报一个"来回折腾。
+-  // ====================================================
++  if (!title) errors.title = 'title required'
++  else if (title.length > 60) errors.title = 'title too long'
++  if (!summary) errors.summary = 'summary required'
++  else if (summary.length > 160) errors.summary = 'summary too long'
+   // 状态用白名单，只有草稿和已发布两种
+   if (!['draft', 'published'].includes(input.status)) errors.status = 'status invalid'
+   const mediaError = validateMedia(input.media)
