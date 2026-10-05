@@ -1,0 +1,90 @@
+/* 项目 1 · 第 3 课教师答案：响应式布局与作品图像
+ *
+ * 六个 TODO 的完成版（最后一段 auto-fit 是"已写好"的部分）。每条后面标了它属于哪个任务，便于课堂对照。
+ */
+
+.portfolio-list {
+  /* TODO 01（极简单）：block → grid。改完 gap 才开始生效（block 下 gap 被忽略）。 */
+  display: grid;
+
+  /* TODO 02（简单）：两列。
+     用 minmax(0, 1fr) 而不是 1fr——网格列默认最小宽度是 auto，
+     遇到超长不换行的英文或网址会把列撑开，整页出现横向滚动条。 */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 30px;
+}
+
+.work-cover {
+  display: block;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  background: #edf1ea;
+}
+
+.work-cover img {
+  width: 100%;
+  height: 100%;
+  /* TODO 03（简单）：fill → cover。
+     fill 会把图片拉伸塞满框，人脸会变形；
+     cover 保持比例放大到铺满、裁掉超出部分——封面图几乎总是用它。 */
+  object-fit: cover;
+}
+
+.work-card {
+  overflow: hidden;
+  border: 1px solid #ded8cb;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(52, 60, 56, 0.08);
+  /* TODO 04 前一半：150—250ms 是界面动效的舒适区。 */
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.work-card a {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.work-copy {
+  padding: 20px 22px 24px;
+}
+
+.work-card:hover,
+.work-card:focus-within {
+  /* TODO 04 后一半：transform 只改视觉位置，不重新挤动周围元素，
+     所以性能好。:focus-within 保证键盘用户也有同样反馈。 */
+  transform: translateY(-4px);
+  box-shadow: 0 16px 38px rgba(52, 60, 56, 0.14);
+}
+
+/* TODO 05（中等）：小屏改成一列。640px 是经验断点，不是某种手机的实际宽度。 */
+@media (max-width: 640px) {
+  .portfolio-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* TODO 06（中等）：标题字号跟着屏幕缩放。
+   clamp(最小, 理想, 最大)：理想值用 vw（1vw = 视口宽度的 1%），
+   两端由最小最大值兜住。一行顶掉好几个断点。 */
+h1 {
+  font-size: clamp(28px, 6vw, 46px);
+}
+
+/* 可选拓展（不计入本课 TODO）：列数交给浏览器算，不写死。
+   repeat(auto-fit, minmax(260px, 1fr)) 的意思是
+   "每列最小 260px、最大 1 份，能塞几列塞几列"。
+   容器 900px → 三列，600px → 两列，300px → 一列。
+   写在文件末尾，覆盖前面写死的列数。 */
+.portfolio-list.is-auto-grid {
+  /* 拓展观察时才在 HTML 的 portfolio-list 后添加 is-auto-grid 类；基础任务先不添加。 */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 有些人看到动效会头晕（前庭功能障碍），这不是可选项。 */
+  .work-card {
+    transition: none;
+  }
+}
