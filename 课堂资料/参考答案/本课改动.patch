@@ -1,0 +1,122 @@
+--- 学生起步/lesson-11/.env.example
++++ 本课完成后/.env.example
+@@ -4,14 +4,6 @@
+ MEDIA_PATH=./var/media
+ BACKUP_PATH=./var/backups
+ CONFIG_ENV_PATH=.env
+-# ============ 第11课 TODO 04（中等）：生产环境的配置要单独一份 ============
+-# 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-# 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-# 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-# （请补充）1：本机的数据库路径、密钥和端口应该怎样设置？
+-# （请补充）2：服务器的持久化目录、随机密钥和 Nginx 反代有什么不同？
+-# 只补上面两行注释；真实密钥只能写进被 .gitignore 忽略的 .env。
+-# ======================================================================
+ # 在本机生成随机密钥后填写，至少32字符。
+ SESSION_SECRET=
+ # 首次建库时设置管理员账号；普通注册用户不填写此项。
+--- 学生起步/lesson-11/scripts/verify-live.mjs
++++ 本课完成后/scripts/verify-live.mjs
+@@ -11,28 +11,7 @@
+  assert.ok(res.status===204||res.headers.get('content-type')?.includes('application/json'),'接口返回了非JSON内容，请检查/api代理')
+  return {status:res.status,body:res.status===204?null:await res.json()}
+ }
+-// ============ 第11课 TODO 03（简单）：上线之后要逐条验 ============
+-// 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-// 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-// 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-// **部署成功不等于功能正常。** 每次上线都手点一遍容易漏，
+-// 所以写一个脚本把该验的都验一遍。
+-//
+-// 终端里看得到的结果：npm run verify:live 一条条打勾，
+-// 全过才算上线成功；有一条不过就说明线上有问题。
+-//
+-// 本任务要补全：补全这一行，对 /health 做四项断言：
+-//   状态码 200
+-//   body.ok 是 true
+-//   body.database 是 'SQLite'（确认连的是数据库，不是走了兜底）
+-//   body.project 是 'P2内容发布平台v4.0'（确认部署的是这个项目，没发错）
+-//
+-// 想一想：为什么线上验证不能只看"首页能打开"？
+-// 因为首页是静态文件，它能打开只说明 Nginx 活着，
+-// **完全不能说明数据库连上了、接口没报错**。
+-// /health 会真的执行一次 SELECT 1，所以它能同时验证 Express 和 SQLite。
+-// ==================================================
+-const health=await request('/health')
++const health=await request('/health');assert.equal(health.status,200);assert.equal(health.body.ok,true);assert.equal(health.body.database,'SQLite');assert.equal(health.body.project,'P2内容发布平台v4.0')
+ async function begin(){
+  const password=randomBytes(24).toString('base64url'),suffix=randomBytes(5).toString('hex')
+  const create=await request('/api/auth/register','POST',{username:'verify_'+suffix,displayName:'部署验收同学',password});assert.equal(create.status,201);assert.equal(create.body.data.user.role,'reader')
+--- 学生起步/lesson-11/server/blog-app.js
++++ 本课完成后/server/blog-app.js
+@@ -54,27 +54,8 @@
+     if (req.user.role !== 'admin') return fail(res, 403, '仅管理员可管理文章')
+     next()
+   }
+-  // ============ 第11课 TODO 01（极简单）：把媒体上传接口打开 ============
+-  // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-  // 现在这个条件永远为假，媒体上传相关的路由**一条都没注册**，
+-  // 管理员在文章编辑页选了图片也传不上去。
+-  //
+-  // 页面上看得到的结果：文章编辑页选一张图片点上传，
+-  // **图片真的传上去并显示在文章里**，而不是提示接口不存在。
+-  //
+-  // 本任务要补全：改回 if (db.driver === 'SQLite') {
+-  //
+-  // 为什么要有这个条件：上传的文件要落到磁盘上。
+-  // Netlify、Vercel 这类平台的服务器是**用完即弃**的，
+-  // 你传上去的文件下一次请求可能就找不到了。
+-  // 只有用 SQLite、并且部署在自己服务器上时，才有可持久化的磁盘。
+-  //
+-  // 这也是本课要讲的一件事：**同一份代码，在不同的部署环境下
+-  // 能力是不一样的**，要在代码里把这件事表达出来，而不是装作没有区别。
+-  // ====================================================
+-  if (false) {
++  // 上传文件需要可持久化磁盘，因此只在 SQLite 服务器环境开放。
++  if (db.driver === 'SQLite') {
+     const media = mediaUpload(options.mediaPath)
+     app.post('/api/media/upload', admin, media.upload, media.save)
+     app.use(
+--- 学生起步/lesson-11/server/media-upload.js
++++ 本课完成后/server/media-upload.js
+@@ -8,27 +8,17 @@
+   const directory = resolve(root),
+     temp = join(directory, '.incoming')
+   mkdirSync(temp, { recursive: true })
+-  // ============ 第11课 TODO 02（简单）：只收白名单里的文件类型 ============
+-  // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-  // 页面上看得到的结果：试着上传一个 .exe 或 .html 文件，
+-  // **被明确拒绝**；上传正常的 jpg/png/mp3/mp4 则成功。
+-  //
+-  // 现在这个集合是空的，等于什么类型都不收，上传永远失败。
+-  //
+-  // 本任务要补全：把九种允许的 MIME 类型补回去：
+-  //   图片 image/png  image/jpeg  image/webp
+-  //   音频 audio/mpeg audio/wav   audio/x-wav  audio/ogg
+-  //   视频 video/mp4  video/webm
+-  //
+-  // 为什么用白名单不用黑名单：危险的类型列不完（exe、bat、html、svg……），
+-  // 漏一个就出事。白名单只有九种，列得全。
+-  //
+-  // 为什么 html 和 svg 不能收：它们能带 <script>。
+-  // 和网站同域名的话，上传上去再打开，脚本就在你的域下执行了。
+-  // ========================================================
+-  const accept = new Set([])
++  const accept = new Set([
++    'image/png',
++    'image/jpeg',
++    'image/webp',
++    'audio/mpeg',
++    'audio/wav',
++    'audio/x-wav',
++    'audio/ogg',
++    'video/mp4',
++    'video/webm',
++  ])
+   const upload = multer({
+     dest: temp,
+     limits: { fileSize: 40 * 1024 * 1024, files: 1, fields: 0 },
