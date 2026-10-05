@@ -1,0 +1,22 @@
+{
+  "classes": [
+    { "id": "class-demo-1", "name": "示例一班", "description": "用于首次运行和功能演示", "teacher": "示例老师", "createdAt": "2026-08-21T00:00:00.000Z" },
+    { "id": "class-demo-2", "name": "示例二班", "description": "可在管理员页面修改或删除", "teacher": "", "createdAt": "2026-08-21T00:00:00.000Z" }
+  ],
+  "users": [
+    { "id": "admin-demo", "username": "系统管理员", "email": "admin@system.com", "password": "admin123", "role": "admin", "classId": null, "profile": { "name": "系统管理员", "hometown": "", "phone": "", "hobbies": [], "bio": "请上线前修改演示密码" }, "createdAt": "2026-08-21T00:00:00.000Z" },
+    { "id": "user-demo", "name": "示例用户", "email": "demo@example.com", "password": "demo123", "classId": "class-demo-1", "profile": { "name": "示例用户", "hometown": "杭州", "phone": "", "hobbies": ["阅读", "摄影"], "bio": "不包含真实个人信息的演示账户" }, "createdAt": "2026-08-21T00:00:00.000Z" }
+  ],
+  "standard_hobbies": [
+    { "id": 1, "name": "阅读", "category": "文化" },
+    { "id": 2, "name": "摄影", "category": "艺术" },
+    { "id": 3, "name": "篮球", "category": "运动" },
+    { "id": 4, "name": "编程", "category": "技术" },
+    { "id": 5, "name": "旅行", "category": "休闲" }
+  ],
+  "synonymGroups": [
+    { "id": "reading", "name": "阅读类", "category": "文化", "synonyms": ["阅读", "读书", "reading", "看书"] },
+    { "id": "programming", "name": "编程类", "category": "技术", "synonyms": ["编程", "程序设计", "programming", "coding"] },
+    { "id": "photography", "name": "摄影类", "category": "艺术", "synonyms": ["摄影", "拍照", "photography", "照相"] }
+  ]
+}
