@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="星声音乐站">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a5a91"/>
+      <stop offset="1" stop-color="#20355c"/>
+    </linearGradient>
+    <linearGradient id="n" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e3ecfb"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#g)"/>
+  <!-- 八分音符：符头 + 符干 + 符尾 -->
+  <path d="M40 13.5v24.2a8.4 7.2 0 1 1-4.6-6.4V19.8l-13.2 3.3v19.6a8.4 7.2 0 1 1-4.6-6.4V19.3z"
+        fill="url(#n)"/>
+  <!-- 右上角一颗小星，呼应"星声" -->
+  <path d="M49.5 12.2l1.5 3.6 3.6 1.5-3.6 1.5-1.5 3.6-1.5-3.6-3.6-1.5 3.6-1.5z"
+        fill="#e8b168"/>
+</svg>
