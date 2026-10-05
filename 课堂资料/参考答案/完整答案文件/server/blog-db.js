@@ -2,12 +2,37 @@ import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { seedArticles } from './data/seedArticles.js'
 import { hashPassword } from './services/auth.js'
+import { assertLesson07Schema } from './lesson07-schema.js'
 
 // 项目二统一使用 SQLite。三张表分别保存用户、文章和评论；
 // media_json 是文章表中的 JSON 文本，保存图片、音频和视频的地址与说明。
 const schema = [
   `CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- ============ 第07课 TODO 01（极简单）：给用户表加上约束 ============
+    -- 【参数拆解】CHECK(条件) 要求每一行满足条件；NOT NULL 禁止空值，UNIQUE 禁止重复。DEFAULT 只在未提供该列值时使用默认值，不会把显式传入的 NULL 自动修正。
+    -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+    -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+    -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+    -- 现在这几列没有任何约束：同一个用户名能注册两次，
+    -- role 想填什么填什么，密码列还能留空。
+    --
+    -- 页面上看得到的结果：做完之后用同一个用户名注册两次，
+    -- 第二次会被明确拒绝，而不是悄悄生成两个同名账号。
+    --
+    -- 本任务要补全：按手册补全五列：
+    --   username      TEXT NOT NULL UNIQUE
+    --   display_name  TEXT NOT NULL
+    --   role          TEXT NOT NULL DEFAULT 'reader'
+    --                 CHECK(role IN ('reader','admin'))   公开注册只能是 reader
+    --   password_salt TEXT NOT NULL                       只存盐
+    --   password_hash TEXT NOT NULL                       只存摘要，绝不存明文
+    --
+    -- 怎么验证：先运行 node scripts/check-lesson07.mjs 1 检查代码，
+    -- 再按手册为 DATABASE_PATH 选择新练习库并重启后端；旧库保留。
+    -- CREATE TABLE IF NOT EXISTS 不会更新旧表，注释中出现 UNIQUE 不代表约束生效。
+    -- 必须在真实文件库上验证首次注册 201、第二次同名注册 409，才能进入 TODO 02。
+    -- ==================================================
     username      TEXT NOT NULL UNIQUE,
     display_name  TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'reader' CHECK(role IN ('reader','admin')),
@@ -17,8 +42,7 @@ const schema = [
   )`,
   `CREATE TABLE IF NOT EXISTS articles (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- ============ 第08课 TODO 01（极简单）：给文章表加上约束 ============
-    -- 【参数拆解】CHECK(条件) 要求每一行满足条件；NOT NULL 禁止空值，UNIQUE 禁止重复。DEFAULT 只在未提供该列值时使用默认值，不会把显式传入的 NULL 自动修正。
+    -- ============ 第08课任务 01（后续预留，本课不要修改）（极简单）：给文章表加上约束 ============
     -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
     -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
     -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
@@ -96,6 +120,13 @@ export async function openBlogDb(env = process.env) {
   const query = async (sql, params = []) =>
     database.prepare(sql.replace(/\$\d+/g, '?')).all(...params)
   for (const sql of schema) await query(sql)
+  // 对比真实 users 表与当前代码，防止改了 TODO 01 却仍在旧表上注册。
+  try {
+    assertLesson07Schema(database, DatabaseSync, schema[0], databasePath === ':memory:' ? databasePath : resolve(databasePath))
+  } catch (error) {
+    database.close()
+    throw error
+  }
 
   // 兼容较早版本生成的数据库：旧表没有 media_json 时自动补列。
   const columns = await query('PRAGMA table_info(articles)')

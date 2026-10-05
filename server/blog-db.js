@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { seedArticles } from './data/seedArticles.js'
 import { hashPassword } from './services/auth.js'
+import { assertLesson07Schema } from './lesson07-schema.js'
 
 // 项目二统一使用 SQLite。三张表分别保存用户、文章和评论；
 // media_json 是文章表中的 JSON 文本，保存图片、音频和视频的地址与说明。
@@ -27,8 +28,10 @@ const schema = [
     --   password_salt TEXT NOT NULL                       只存盐
     --   password_hash TEXT NOT NULL                       只存摘要，绝不存明文
     --
-    -- 怎么亲眼看到：npm run db:inspect 会把建表语句打出来，
-    -- 你能在里面看到 UNIQUE 和 CHECK 这两个词。
+    -- 怎么验证：先运行 node scripts/check-lesson07.mjs 1 检查代码，
+    -- 再按手册为 DATABASE_PATH 选择新练习库并重启后端；旧库保留。
+    -- CREATE TABLE IF NOT EXISTS 不会更新旧表，注释中出现 UNIQUE 不代表约束生效。
+    -- 必须在真实文件库上验证首次注册 201、第二次同名注册 409，才能进入 TODO 02。
     -- ==================================================
     username      TEXT,
     display_name  TEXT,
@@ -117,6 +120,13 @@ export async function openBlogDb(env = process.env) {
   const query = async (sql, params = []) =>
     database.prepare(sql.replace(/\$\d+/g, '?')).all(...params)
   for (const sql of schema) await query(sql)
+  // 对比真实 users 表与当前代码，防止改了 TODO 01 却仍在旧表上注册。
+  try {
+    assertLesson07Schema(database, DatabaseSync, schema[0], databasePath === ':memory:' ? databasePath : resolve(databasePath))
+  } catch (error) {
+    database.close()
+    throw error
+  }
 
   // 兼容较早版本生成的数据库：旧表没有 media_json 时自动补列。
   const columns = await query('PRAGMA table_info(articles)')

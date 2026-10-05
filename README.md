@@ -40,3 +40,5 @@ node -v
 在工程根目录运行 `node scripts/check-lesson07.mjs 1`，检查刚完成 TODO 01 的状态；末尾数字换成 `2`、`3`、`4`，对应当前已完成的阶段。`0` 只适合尚未修改的起点。检查使用独立内存库，不会改本机数据库；已经完成阶段 4 时不要再用阶段 0 的预期检查。
 
 四项通过后，按 [第07课上线操作指南](deploy/README-lesson07.md) 部署到阿里云 Ubuntu；前端也可选 GitHub Pages 或 Surge。只使用配套的受限上线入口，不把开发服务器直接暴露到公网。最后再尝试手册中的 AI vibe coding 小作品。
+
+TODO 01 包含两步：改五列定义，以及让实际文件库采用新结构。内存阶段检查通过不代表网页正在使用的旧表已更新；按手册修改 `.env` 的 `DATABASE_PATH` 为未使用的新练习库路径，保留旧库并重启。随后执行 `node --env-file=.env scripts/check-lesson07-db.mjs` 检查当前文件库，再在网页验证同名注册 `201 → 409`。出现 `LESSON07_SCHEMA_MISMATCH` 是启动保护提示，不是启动成功。
