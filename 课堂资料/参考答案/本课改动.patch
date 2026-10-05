@@ -1,0 +1,140 @@
+--- 学生起步/lesson-14/backend/database/schema.sql
++++ 本课完成后/backend/database/schema.sql
+@@ -21,25 +21,7 @@
+   id VARCHAR(64) PRIMARY KEY,
+   username VARCHAR(100) NOT NULL,
+   name VARCHAR(100) NOT NULL,
+-    -- ============ 第14课 TODO 02（简单）：MySQL 的约束写法 ============
+-  -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-  -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-  -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-  -- 和 SQLite 大同小异，但有几处不一样，正好对照着记：
+-  --   SQLite: email TEXT NOT NULL UNIQUE
+-  --   MySQL : email VARCHAR(255) NOT NULL UNIQUE
+-  --
+-  -- **MySQL 要求字符串列指定长度**（VARCHAR(255)），SQLite 不用。
+-  -- 原因是 MySQL 要为索引预分配空间，必须知道最大长度。
+-  --
+-  -- 页面上看得到的结果：同邮箱注册第二次被拒。
+-  --
+-  -- 本任务要补全：把这一列改成 VARCHAR(255) NOT NULL
+-  -- （唯一性由下面单独的 CONSTRAINT uq_users_email UNIQUE (email) 保证，
+-  --   MySQL 允许把约束单独命名写出来，好处是报错信息里会带上这个名字，
+-  --   一眼知道是哪条约束被违反了）
+-  -- ==================================================
+-  email VARCHAR(255),
++  email VARCHAR(255) NOT NULL,
+   password_hash VARCHAR(255) NOT NULL,
+   avatar MEDIUMTEXT NOT NULL,
+   role VARCHAR(32) NOT NULL DEFAULT 'user',
+--- 学生起步/lesson-14/backend/db.js
++++ 本课完成后/backend/db.js
+@@ -11,33 +11,12 @@
+   }
+ }
+
+-// ============ 第14课 TODO 01（极简单）：连接信息必须从 .env 读 ============
+-// 【参数拆解】Number(值) 尝试转换成数字；不是数字时得到 NaN。字符串编号和数字编号直接做严格相等比较会不相等，比较前要统一类型并检查有效范围。
+-// 【参数拆解】process.env 读取启动进程收到的环境变量，读取结果通常是字符串；数字配置要显式转换。默认值用于缺省情况，密钥仍必须由本机或部署平台提供。
+-// 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-// 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-// 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-// 第 13 课的 SQLite 是一个本地文件，不需要账号密码。
+-// MySQL 是一个**独立运行的服务**，要用账号密码连过去——
+-// 于是第一次出现了"**不能写进代码里的东西**"。
+-//
+-// 终端里看得到的结果：npm run db:verify 能连上数据库并打印表结构。
+-//
+-// 本任务要补全：把下面五处改成从 process.env 读取。
+-//
+-// **为什么绝对不能写在源码里**：源码要进 Git、要分享给同学、
+-// 要发到服务器上。密码一旦进了 Git 历史，**删掉也没用**——
+-// 历史里还在，任何克隆过仓库的人都有。只能去改密码。
+-//
+-// 另外注意 user 不要用 root：应用应该用一个**只能操作这个库**的账号，
+-// 万一被注入，损失范围也小得多。这叫"最小权限"。
+-// ========================================================
+ const pool = mysql.createPool({
+-  host: '127.0.0.1',
+-  port: 3306,
+-  user: 'root',
+-  password: '123456',
+-  database: 'personalink',
++  host: process.env.DB_HOST || '127.0.0.1',
++  port: Number(process.env.DB_PORT || 3306),
++  user: process.env.DB_USER || 'personalink',
++  password: process.env.DB_PASSWORD || '',
++  database: process.env.DB_NAME || 'personalink',
+   waitForConnections: true,
+   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+   queueLimit: 0,
+--- 学生起步/lesson-14/backend/scripts/verify-mysql.js
++++ 本课完成后/backend/scripts/verify-mysql.js
+@@ -23,25 +23,7 @@
+     standardHobbies: Number(hobbyCount.total),
+     studentsWithStoredAvatar: Number(avatarStats.total),
+     storedStudentAvatarBytes: Number(avatarStats.bytes),
+-        // ============ 第14课 TODO 03（中等）：迁移之后必须逐项核对 ============
+-    // 【参数拆解】Number(值) 尝试转换成数字；不是数字时得到 NaN。字符串编号和数字编号直接做严格相等比较会不相等，比较前要统一类型并检查有效范围。
+-    // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-    // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-    // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-    // **数据迁移最危险的不是失败，是"看起来成功了"。**
+-    // 少搬了 3 条、某个字段错位了、外键指向了不存在的班级——
+-    // 这些都不会报错，等用户投诉时才发现。
+-    //
+-    // 终端里看得到的结果：npm run db:verify 打印一张核对表，
+-    // 逐项说明搬了多少、有没有孤儿数据、还有没有明文密码。
+-    //
+-    // 本任务要补全：统计"指向不存在班级的用户"有多少条，写进报告：
+-    //   orphanUsers: Number(orphans.total)
+-    //
+-    // **迁移三件套**：搬之前数一遍、搬之后数一遍、两个数对得上。
+-    // 这一条纪律能挡掉绝大多数迁移事故。
+-    // ==========================================================
+-    orphanUsers: 0,
++    orphanUsers: Number(orphans.total),
+     adminExists: Boolean(admin),
+     adminPasswordHashed
+   };
+--- 学生起步/lesson-14/scripts/backup-mysql.ps1
++++ 本课完成后/scripts/backup-mysql.ps1
+@@ -30,37 +30,7 @@
+ Write-Host "Backing up $DbHost`:$DbPort/$DbName"
+ Write-Host 'MySQL will ask for the password. No characters are shown while you type.'
+ try {
+-  # ============ 第14课 TODO 04（中等）：MySQL 怎么备份 ============
+-# 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-# 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-# 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-# 第 13 课的 SQLite 备份就是复制一个文件。
+-# MySQL 是独立服务，数据分散在很多文件里，**不能直接复制目录**
+-# （复制到一半数据库还在写，拿到的是一个坏掉的快照）。
+-#
+-# 正确做法是用 mysqldump：它连上数据库，把数据导成一份 SQL 文本，
+-# 里面是一条条 CREATE TABLE 和 INSERT。
+-#
+-# 终端里看得到的结果：跑一次备份，生成一个 .sql 文件，
+-# 用记事本打开能看到熟悉的 SQL 语句。
+-#
+-# 本任务要补全：补全 mysqldump 命令。做完**一定要演练一次恢复**：
+-#   备份 → 删库 → 用 mysql < 备份文件 恢复 → db:verify 数字对得上
+-#
+-# 顺便对照一下三课的备份方式：
+-#   第 12 课 JSON  复制一个 .json 文件
+-#   第 13 课 SQLite 复制一个 .sqlite 文件（注意 WAL）
+-#   第 14 课 MySQL  mysqldump 导出 SQL 文本
+-# **存储方式变了，备份方式也跟着变**——这是本课一条重要的认知。
+-#
+-# 几个关键参数的意思：
+-#   --single-transaction  在一个事务里导出，**导出期间数据库照常读写**，
+-#                         拿到的是一个一致的快照，不用停服务
+-#   --quick               逐行取而不是一次全读进内存，大表才不会撑爆
+-#   --result-file=        直接写文件，比用 > 重定向更可靠（不会有编码问题）
+-#   --default-character-set=utf8mb4   中文和 emoji 才不会变成问号
+-# ================================================
+-  & mysqldump --result-file=$temporaryFile $DbName
++  & mysqldump --host=$DbHost --port=$DbPort --user=$DbUser --password --single-transaction --quick --routines --triggers --events --hex-blob --no-tablespaces --default-character-set=utf8mb4 --result-file=$temporaryFile $DbName
+   if ($LASTEXITCODE -ne 0) { throw 'mysqldump failed.' }
+   if (-not (Test-Path -LiteralPath $temporaryFile) -or (Get-Item -LiteralPath $temporaryFile).Length -eq 0) { throw 'mysqldump created an empty file.' }
+   Move-Item -LiteralPath $temporaryFile -Destination $backupFile
