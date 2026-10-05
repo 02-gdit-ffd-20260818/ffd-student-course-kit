@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 import AboutView from './views/AboutView.vue'
 import AdminArticlesView from './views/AdminArticlesView.vue'
 import ArticleFormView from './views/ArticleFormView.vue'
@@ -11,7 +11,8 @@ import LoginView from './views/LoginView.vue'
 import { getAccessToken, readAuthSession } from './services/authSession.js'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  // Pages 没有 SPA 重写：构建时设 VITE_ROUTER_MODE=hash；同源 Ubuntu 保持默认 history。
+  history: (import.meta.env.VITE_ROUTER_MODE === 'hash' ? createWebHashHistory : createWebHistory)(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/tags/:tag', name: 'tag', component: HomeView, props: true },

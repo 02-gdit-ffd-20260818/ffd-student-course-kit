@@ -1,0 +1,23 @@
+# 复制到 /etc/systemd/system/ffd-lesson07.service；服务用户由部署手册创建。
+[Unit]
+Description=FFD lesson07 classroom application
+After=network.target
+
+[Service]
+Type=simple
+User=ffdlesson07
+Group=ffdlesson07
+WorkingDirectory=/srv/ffd-lesson07/app
+# Node 必须由教师预装在 /usr/bin/node，版本为 24.x；若路径不同，先按手册修改本行。
+ExecStart=/usr/bin/node --env-file=/srv/ffd-lesson07/app/.env scripts/serve-lesson07.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/ffd-lesson07/data
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
