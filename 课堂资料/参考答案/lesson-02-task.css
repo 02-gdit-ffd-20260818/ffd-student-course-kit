@@ -1,0 +1,98 @@
+/* 第 2 课教师答案：CSS 字体、配色与盒模型。
+ *
+ * 这个文件在 index.html 里排在 styles.css 后面。
+ * CSS 的规则是：同样具体的选择器，写在后面的赢。
+ * 所以这里每一条都覆盖 styles.css 里的同名规则——不用去改那个几百行的大文件。
+ */
+
+:root {
+  /* TODO 01（极简单）：全站标题颜色。改这一处，h1、h2 一起变。 */
+  --heading: #254a40;
+  --subheading: #7c6348;
+
+  /* TODO 02（极简单）：页面底色。纯白刺眼，用带一点暖的"纸白"。 */
+  --background: #fbfaf6;
+
+  /* TODO 03（简单）：正文字号。不要小于 16px，长段落读着累。 */
+  --body-size: 19px;
+
+  /* TODO 04（简单）：行高。写 1.8 不写单位——带单位会把算好的固定值硬塞给子元素。
+     中文字形方正笔画密，行高要比英文大：英文常用 1.5，中文用 1.75—1.9。 */
+  --body-line: 1.8;
+}
+
+body {
+  background: var(--background);
+  font-size: var(--body-size);
+  line-height: var(--body-line);
+}
+
+h1,
+h2 {
+  color: var(--heading);
+}
+
+h1 {
+  font-size: 46px;
+}
+
+h1 span {
+  font-size: 28px;
+  margin-left: 20px;
+}
+
+/* TODO 05（简单）：盒模型。由内到外是 content → padding → border → margin。
+   背景色铺到 padding 为止，铺不到 margin——这是两者最直观的区别。 */
+h2 {
+  font-size: 30px;
+  padding: 8px 14px;
+  border-left: 3px solid #b8a27d;
+  background: #edf1ea;
+}
+
+h3,
+.skills-list strong {
+  color: var(--subheading);
+}
+
+/* TODO 06（中等）：链接的悬停反馈。
+   :hover 是伪类，选的是元素的"状态"而不是元素本身。
+   transition 让颜色平滑过渡，而不是"啪"地一下换掉。 */
+a {
+  color: #42635b;
+  transition: color .2s, text-decoration-thickness .2s;
+}
+
+a:hover {
+  color: var(--heading);
+  text-decoration-thickness: 2px;
+}
+
+.section {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid #e1ddd3;
+}
+
+.experience-item,
+.research-item {
+  margin-bottom: 24px;
+}
+
+.profile-details > div {
+  margin: 12px 0;
+}
+
+.profile-details span {
+  color: #6d746d;
+}
+
+/* TODO 07（中等）：限制正文宽度。
+   一行 45—75 个西文字符（中文 30—40 字）最好读，太长会串行。
+   用 max-width 不用 width：屏幕比它窄时会自动缩小，手机上才不会横向溢出。
+   左右 margin 设 auto 就是水平居中。 */
+.container {
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+}
