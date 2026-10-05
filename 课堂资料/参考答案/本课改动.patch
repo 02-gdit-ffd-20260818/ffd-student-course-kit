@@ -1,0 +1,141 @@
+--- 学生起步/p5-lesson-01/src/adapters/musicAdapter.js
++++ 本课完成后/src/adapters/musicAdapter.js
+@@ -77,22 +77,7 @@
+       album: raw.collectionName ?? '',
+       // 接口默认给 100×100 的小图，把地址里的尺寸换掉就能拿到大图。
+       // **这类"接口没写在文档里但很实用"的细节，是对接第三方时的常见收获。**
+-            // ====== P5 第1课 任务 TODO 01（极简单）：把封面换成高清的 ======
+-      // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-      // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-      // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-      // 页面上看得到的结果：现在封面是 100×100 的小图，放到唱片位置很糊。
+-      // 做完之后是 400×400，清清楚楚。
+-      //
+-      // 本任务要补全：String(raw.artworkUrl100 ?? '').replace('100x100', '400x400')
+-      //
+-      // 这个技巧**文档里没写**：iTunes 的封面地址里直接带着尺寸，
+-      // 把它替换掉就能要到任意尺寸。对接第三方接口时，
+-      // **多看几眼返回的数据，常能发现文档没提的用法。**
+-      // 注意外面套一层 String(... ?? '')：万一这个字段不存在，
+-      // 直接 .replace 会报 "Cannot read properties of undefined"。
+-      // ====================================================
+-      cover: raw.artworkUrl100 ?? '',
++      cover: String(raw.artworkUrl100 ?? '').replace('100x100', '400x400'),
+       previewUrl: raw.previewUrl,
+       // iTunes 不提供歌词。**字段留着但给空值**，队列项的形状才是统一的——
+       // 界面就不用写 if (有没有这个字段)，只要判断它是不是空。
+@@ -129,29 +114,22 @@
+   static cache = { list: [], loadedAt: 0, endpoint: null }
+
+   // 把不同镜像的字段统一成一种形状。**这就是适配器最核心的那一步。**
+-    // ============ P5 第1课 任务 TODO 02（简单）：把两套字段名抹平 ============
+-  // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-  // 页面上看得到的结果：现在搜"周杰伦"，结果全是「未知曲目 / 未知艺术家」。
+-  // 做完之后歌名和歌手都正常显示。
+-  //
+-  // 为什么会这样：**两个 meting 镜像返回的字段名不一样**——
+-  //   api.injahow.cn  给的是  { name, artist }
+-  //   api.i-meto.com  给的是  { title, author }
+-  // 我们要从这两个镜像分别拿搜索和播放，所以必须先统一成一种形状。
+-  //
+-  // TODO 三件事：
+-  //   1) 用 raw.name ?? raw.title 同时认两套字段名（artist / author 同理）
+-  //   2) 用正则从 url 里抠出 id 和 server：/[?&]id=(\w+)/
+-  //   3) 都取不到时给一个兜底值，**不要让 undefined 流到界面上**
+-  //
+-  // 这一步就是**适配器模式最核心的那一下**：
+-  // 外面的世界五花八门，进了这扇门就只有一种形状。
+-  // ==============================================================
+   static normalize(raw) {
+-    return { songId: '', server: 'netease', name: '未知曲目', artist: '未知艺术家',
+-      pic: '', lrc: '', rawUrl: raw.url ?? '', playlist: '' }
++    const url = raw.url ?? ''
++    // 播放地址里带着歌曲 id，把它抠出来，好换一个镜像重新拼播放地址
++    const id = String(url).match(/[?&]id=(\w+)/)?.[1] ?? ''
++    const server = String(url).match(/[?&]server=(\w+)/)?.[1] ?? 'netease'
++    return {
++      songId: id,
++      server,
++      // 两套字段名都认，谁有用谁
++      name: raw.name ?? raw.title ?? '未知曲目',
++      artist: raw.artist ?? raw.author ?? '未知艺术家',
++      pic: raw.pic ?? '',
++      lrc: raw.lrc ?? '',
++      rawUrl: url,
++      playlist: raw.playlist ?? '',
++    }
+   }
+
+   // 播放地址统一从"播放镜像"重新拼，不直接用搜索结果里给的那个
+@@ -424,27 +402,19 @@
+
+ // 统一的容错包装：不管哪个适配器、不管它怎么炸，都返回同样形状的结果，
+ // 界面只要判断 error 有没有值就行，永远不会因为搜索失败而白屏。
+-// ============ P5 第1课 任务 TODO 03（中等）：音源挂了也不能白屏 ============
+-// 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-// 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-// 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-// 页面上看得到的结果：搜索框里输入 **断网** 两个字（这是课堂用的故障开关，
+-// 适配器里写好了遇到它就抛错）。
+-// 现在：整个页面白屏，Console 里一个未捕获异常。
+-// 做完之后：出现一句人话提示，再搜别的照常能用。
+-//
+-// 本任务要补全：用 try/catch 把 adapter.search 包起来，**让这个函数永远不抛异常**：
+-//   成功 → { items: 结果, error: null, source: 音源名 }
+-//   失败 → { items: [], error: '这个音源暂时不可用…', retryable: true, source: 音源名 }
+-//
+-// 两个设计要点：
+-//   1) **返回形状固定**，调用方只要判断 error 有没有值，不用写 try/catch；
+-//   2) **给用户看的是人话**，不是 mock_network_error 这种内部代号——
+-//      内部代号写进日志给开发者看，提示语写给用户看，两者不是一回事。
+-// ==================================================================
+ export async function safeSearch(adapter, keyword, options = {}) {
+-  const items = await adapter.search(keyword, options)
+-  return { items, error: null, source: adapter.constructor.label }
++  try {
++    const items = await adapter.search(keyword, options)
++    return { items, error: null, source: adapter.constructor.label }
++  } catch {
++    // 注意给用户看的是一句人话，不是 mock_network_error 这种内部代号
++    return {
++      items: [],
++      error: '这个音源暂时不可用，已经帮你换一个试试',
++      retryable: true,
++      source: adapter.constructor.label,
++    }
++  }
+ }
+
+ /**
+@@ -455,25 +425,10 @@
+  * 这样界面就永远不会出现"什么都没有"的绝望状态。
+  */
+ export async function searchWithFailover(preferredKey, keyword, options = {}) {
+-    // ============ P5 第1课 任务 TODO 04（中等）：换源的顺序 ============
+-  // 【参数拆解】filter(判断函数) 遍历数组，只把判断结果为 true 的项放入新数组；不会删除原数组内容。箭头左边是当前项，右边是判断表达式。
+-  // 【参数拆解】map(转换函数) 对数组每一项执行一次转换并返回新数组；回调函数的参数是当前项，return 的值是新数组里的对应项。
+-  // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+-  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+-  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+-  // 页面上看得到的结果：把网线拔了（或者在浏览器 F12 → Network 里选 Offline），
+-  // 再搜一次——**最后一定会落到「课堂合成音」，出三首歌**，而不是空白。
+-  //
+-  // 本任务要补全：拼出尝试顺序——用户选的那个排第一，其余的按登记顺序跟在后面：
+-  //   const order = [preferredKey, ...SOURCES.map(i => i.key).filter(k => k !== preferredKey)]
+-  //
+-  // **为什么课堂合成音一定要排在 SOURCES 的最后一个**：
+-  // 它是浏览器现场用数学公式算出来的声音，**不联网也能响**。
+-  // 把它放在最后，就保证了"所有网络音源都挂了"时仍然有东西可放。
+-  //
+-  // 这叫**优雅降级**：不追求永远最好，只保证永远可用。
+-  // ==========================================================
+-  const order = [preferredKey]
++  const order = [
++    preferredKey,
++    ...SOURCES.map(item => item.key).filter(key => key !== preferredKey),
++  ]
+   const tried = []
+   for (const key of order) {
+     const adapter = createAdapter(key)
