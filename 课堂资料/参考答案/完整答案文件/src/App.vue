@@ -70,8 +70,9 @@ let activeLineEl = null
 // 人眼习惯盯着中间那一行。
 watch(activeLine, () => {
   if (!activeLineEl || !lyricBox.value) return
-  activeLineEl.scrollIntoView({ block: 'center', behavior: 'smooth' })
-})
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  activeLineEl.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'instant' : 'smooth' })
+}, { flush: 'post' })
 
 async function loadLyrics(track) {
   const token = ++lyricToken
@@ -138,12 +139,12 @@ async function search(word) {
       : `在「${searchedSource.value}」找到 ${response.items.length} 首`
     if (response.fellBack) sourceKey.value = response.key
     remember(clean)
-  } else if (response.tried.some(item => item.reason)) {
+  } else if (response.tried.length > 0 && response.tried.every(item => item.reason && item.reason !== '没有匹配结果')) {
     searchState.value = 'error'
-    notice.value = '几个音源都没响应，试试「课堂合成音」，它不联网也能用'
+    notice.value = '尝试的音源暂时不可用；可选择「课堂合成音」搜索“练习曲”。搜索“断网”是刻意触发失败的课堂测试。'
   } else {
     searchState.value = 'empty'
-    notice.value = '没有找到，换个关键词试试'
+    notice.value = sourceKey.value === 'mock' ? '课堂合成音只有三首示例，请搜索“练习曲”或“音乐”；没有匹配结果不代表断网。' : '没有找到，换个关键词试试；空结果不代表网络故障。'
   }
 }
 
@@ -277,8 +278,12 @@ function onTimeUpdate(event) {
 
 function onError() {
   queue.playerState = 'error'
-  notice.value = '这一首播不出来（音源可能失效了），已自动跳到下一首'
-  setTimeout(() => playNext(true), 800)
+  if (queue.items.length < 2) {
+    notice.value = '这首歌暂时无法播放，请换一首或换个音源'
+    return
+  }
+  notice.value = '这一首播不出来，800 毫秒后尝试下一首'
+  setTimeout(() => playNext(false), 800)
 }
 
 watch(volume, value => {
@@ -362,8 +367,11 @@ try {
   queue.restore(JSON.parse(localStorage.getItem('p5-queue') || 'null'))
   history.value = JSON.parse(localStorage.getItem('p5-history') || '[]')
   theme.value = localStorage.getItem('p5-theme') || 'light'
-  const savedVolume = Number(localStorage.getItem('p5-volume'))
-  if (Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) volume.value = savedVolume
+  // getItem 没有保存值时返回 null；Number(null) 是 0，不能当成用户选择了静音。
+  const storedVolume = localStorage.getItem('p5-volume')
+  const savedVolume = Number(storedVolume)
+  if (storedVolume !== null && storedVolume.trim() !== '' && Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) volume.value = savedVolume
+  if (audio.value) audio.value.volume = volume.value
   const savedMode = localStorage.getItem('p5-mode')
   if (PLAY_MODES.some(mode => mode.key === savedMode)) playMode.value = savedMode
 } catch {
@@ -384,6 +392,7 @@ watch(volume, value => localStorage.setItem('p5-volume', String(value)))
 watch(playMode, value => localStorage.setItem('p5-mode', value))
 
 onMounted(() => {
+  if (audio.value) audio.value.volume = volume.value
   document.documentElement.dataset.theme = theme.value
   window.addEventListener('keydown', onKey)
   // 先把流行歌单在后台拉起来，等用户想搜的时候就是秒出
