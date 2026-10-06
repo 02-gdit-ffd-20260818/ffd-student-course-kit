@@ -1,3 +1,4 @@
+import { assertCourseSchema } from './course-schema.js'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { seedArticles } from './data/seedArticles.js'
@@ -29,6 +30,30 @@ const schema = [
   )`,
   `CREATE TABLE IF NOT EXISTS comments (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- ============ 第09课 TODO 01（极简单）：评论表和它的两个外键 ============
+    -- 【参数拆解】CHECK(条件) 要求每一行满足条件；NOT NULL 禁止空值，UNIQUE 禁止重复。DEFAULT 只在未提供该列值时使用默认值，不会把显式传入的 NULL 自动修正。
+    -- 【参数拆解】REFERENCES 表名(列名) 指明外键对应哪张表哪一列；ON DELETE CASCADE 表示删除被引用的父记录时一并删除子记录，不是删除整张子表。
+    -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+    -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+    -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+    -- 现在 article_id 和 user_id 只是两个普通数字，
+    -- 可以指向根本不存在的文章和用户——数据库里会留下一堆"孤儿评论"。
+    --
+    -- 页面上看得到的结果：做完之后（配合 已写好的代码），
+    -- **删掉一篇文章，它下面的评论会跟着一起消失**，不会变成找不到归属的垃圾数据。
+    --
+    -- 本任务要补全：按手册补全三列：
+    --   article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE
+    --              外键指向 articles.id；ON DELETE CASCADE 表示
+    --              **文章被删时，它的评论一起删掉**
+    --   user_id    INTEGER NOT NULL REFERENCES users(id)
+    --              评论必须属于一个真实存在的用户（用户表这里不级联删，
+    --              因为删用户是大事，要人工确认）
+    --   body       TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 1000)
+    --              空评论和超长评论都由数据库挡掉
+    --
+    -- 怎么亲眼看到：npm run db:inspect 的建表语句里有 REFERENCES 和 CASCADE。
+    -- ======================================================
     article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
     user_id    INTEGER NOT NULL REFERENCES users(id),
     body       TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 1000),
@@ -49,6 +74,13 @@ export async function openBlogDb(env = process.env) {
   const query = async (sql, params = []) =>
     database.prepare(sql.replace(/\$\d+/g, '?')).all(...params)
   for (const sql of schema) await query(sql)
+  // 改代码不会更新旧表；必须明确处理数据库结构变化，不能静默继续注册或写文章。
+  try {
+    assertCourseSchema(database, DatabaseSync, schema, databasePath === ':memory:' ? databasePath : resolve(databasePath))
+  } catch (error) {
+    database.close()
+    throw error
+  }
 
   // 兼容较早版本生成的数据库：旧表没有 media_json 时自动补列。
   const columns = await query('PRAGMA table_info(articles)')

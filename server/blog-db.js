@@ -1,3 +1,4 @@
+import { assertCourseSchema } from './course-schema.js'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { seedArticles } from './data/seedArticles.js'
@@ -73,6 +74,13 @@ export async function openBlogDb(env = process.env) {
   const query = async (sql, params = []) =>
     database.prepare(sql.replace(/\$\d+/g, '?')).all(...params)
   for (const sql of schema) await query(sql)
+  // 改代码不会更新旧表；必须明确处理数据库结构变化，不能静默继续注册或写文章。
+  try {
+    assertCourseSchema(database, DatabaseSync, schema, databasePath === ':memory:' ? databasePath : resolve(databasePath))
+  } catch (error) {
+    database.close()
+    throw error
+  }
 
   // 兼容较早版本生成的数据库：旧表没有 media_json 时自动补列。
   const columns = await query('PRAGMA table_info(articles)')
