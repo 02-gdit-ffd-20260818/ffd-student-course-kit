@@ -1,6 +1,6 @@
 --- 学生起步/lesson-14/backend/database/schema.sql
 +++ 本课完成后/backend/database/schema.sql
-@@ -21,25 +21,7 @@
+@@ -21,27 +21,7 @@
    id VARCHAR(64) PRIMARY KEY,
    username VARCHAR(100) NOT NULL,
    name VARCHAR(100) NOT NULL,
@@ -12,10 +12,12 @@
 -  --   SQLite: email TEXT NOT NULL UNIQUE
 -  --   MySQL : email VARCHAR(255) NOT NULL UNIQUE
 -  --
--  -- **MySQL 要求字符串列指定长度**（VARCHAR(255)），SQLite 不用。
--  -- 原因是 MySQL 要为索引预分配空间，必须知道最大长度。
+-  -- VARCHAR(255) 声明最大字符数，不表示每行预先占满 255 字符。
+-  -- 本任务增加 NOT NULL；MySQL 也支持 TEXT，不能说所有字符串类型都要写长度。
 -  --
--  -- 页面上看得到的结果：同邮箱注册第二次被拒。
+-  -- 实际数据库验收：SHOW COLUMNS 的 email Null=NO；事务内插入 NULL 被拒，最后 ROLLBACK。
+-  -- 同邮箱原本已受下面的 UNIQUE 保护，不是本任务前后的区别。
+-  -- CREATE TABLE IF NOT EXISTS 不会改旧列；已有表必须按手册检查并明确迁移，不要删库。
 -  --
 -  -- 本任务要补全：把这一列改成 VARCHAR(255) NOT NULL
 -  -- （唯一性由下面单独的 CONSTRAINT uq_users_email UNIQUE (email) 保证，
