@@ -7,7 +7,7 @@ import { composeGreeting } from '../src/shared/greetingTemplates.js'
 
 export const PROMPT_VERSION = 'greeting-card-v1.3'
 // 场景和语气都用**白名单**。为什么不是"检查有没有坏词"：坏词永远列不完，
-// 白名单只有这么几项，列不全的风险为零。
+// 白名单把允许范围写明，还要核对业务需要哪些值。
 export const OCCASIONS = ['生日', '毕业', '新年', '感谢', '乔迁', '通用']
 export const TONES = ['真诚', '温暖', '活泼', '典雅', '简洁']
 

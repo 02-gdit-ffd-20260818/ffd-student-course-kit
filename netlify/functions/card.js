@@ -7,7 +7,7 @@
 //
 // **这里存的是别人写给别人的祝福，所以只存必要字段、不存任何身份信息**，
 // 也不记录 IP。贺卡本身是公开可读的——拿到链接就能看，这正是"分享"的含义，
-// 所以短标识里带随机码，别人猜不到。
+// 链接不是访问密码，称呼和日期可被猜到；不要填写敏感资料。
 
 import { getStore } from '@netlify/blobs'
 import { candidateSlugs, isSafeSlug } from '../../src/shared/slug.js'
@@ -31,7 +31,7 @@ function sanitize(body) {
   // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
   // 终端里看得到的结果：现在用 curl 往 /api/card 里塞一个几兆的字符串，
   // 或者塞几十个额外字段，全都会被原样存进去。
-  // 做完之后只存五个字段，每个都截到上限。
+  // 做完之后只取五个业务字段并限长，另由服务器生成 createdAt，共六个字段。
   //
   // 本任务要补全：按字段白名单逐个取值并限长：
   //   receiver: text(body?.receiver, 20).trim()
@@ -58,13 +58,14 @@ function sanitize(body) {
   return card
 }
 
-export default async function handler(request) {
+export default async function handler(request, context) {
   const url = new URL(request.url)
+  const cards = () => context?.cardStore ?? store()
 
   if (request.method === 'GET') {
     const slug = url.searchParams.get('slug')
     if (!isSafeSlug(slug)) return json({ error: { message: '链接不正确' } }, 400)
-    const card = await store().get(slug, { type: 'json' })
+    const card = await cards().get(slug, { type: 'json' })
     if (!card) return json({ error: { message: '这张贺卡不存在，或者已经过期' } }, 404)
     // 贺卡内容不会再变，可以放心让 CDN 缓存久一点
     return json({ card }, 200, 'public, max-age=600, s-maxage=86400')
@@ -79,13 +80,19 @@ export default async function handler(request) {
     return json({ error: { message: error.message } }, 400)
   }
 
-  const blobs = store()
+  const blobs = cards()
   // 先试最好看的 `林老师-20260922`，被占了再往后退到带随机码的。
   // 这里必须一个一个试，不能直接覆盖——覆盖会把别人的贺卡冲掉。
   for (const slug of candidateSlugs(card.receiver)) {
     const taken = await blobs.get(slug, { type: 'json' })
     if (taken) continue
-    await blobs.setJSON(slug, card)
+    // onlyIfNew 由平台原子判断，避免两个请求先查到空值后互相覆盖。
+    // 本地适配器通过独占创建实现同一约束，冲突时抛 EEXIST。
+    try {
+      const result = await blobs.setJSON(slug, card, { onlyIfNew: true })
+      if (result?.modified === false) continue
+    }
+    catch (error) { if (error.code === 'EEXIST') continue; throw error }
     return json({ slug, path: `/c/${slug}` })
   }
 

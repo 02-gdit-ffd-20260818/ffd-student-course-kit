@@ -262,7 +262,7 @@ onMounted(() => {
       </section>
     </main>
 
-    <footer>祝福由模型起草，请你确认后再发出 · 模型密钥只保存在服务端</footer>
+    <footer>文案来源见上方提示，请你确认后再发出 · 模型密钥只保存在服务端</footer>
     <p v-if="toast" class="toast" role="status">{{ toast }}</p>
   </div>
 </template>

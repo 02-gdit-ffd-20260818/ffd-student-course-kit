@@ -153,7 +153,7 @@ export default async function handler(request, context) {
   if (!isSafeSlug(slug))
     return new Response(notFound, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 
-  const card = await getStore({ name: 'cards', consistency: 'strong' }).get(slug, { type: 'json' })
+  const card = await (context?.cardStore ?? getStore({ name: 'cards', consistency: 'strong' })).get(slug, { type: 'json' })
   if (!card)
     return new Response(notFound, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 
