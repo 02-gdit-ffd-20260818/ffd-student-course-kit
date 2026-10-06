@@ -16,8 +16,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 连接数据库
-connectDB();
+// 数据文件确认可读取后再监听，不能在初始化失败时仍声称启动成功。
 
 // API路由
 app.use('/api/users', userRoutes);
@@ -34,10 +33,11 @@ app.get('/', (req, res) => {
 app.use(errorHandler);
 
 // 启动服务器
-app.listen(PORT, '0.0.0.0', () => {
+connectDB().then(() => app.listen(PORT, '127.0.0.1', () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   
-  // 对于云服务器，我们直接显示公网IP地址
-  // 这里我们硬编码服务器的公网IP地址，因为云服务器的内网地址无法从外部访问
-  console.log(`Server is accessible on http://43.156.217.98:${PORT}`);
+  console.log('本课开发接口只监听本机；上线按手册使用受控入口，不开放开发端口。');
+})).catch(error => {
+  console.error('启动失败，未监听端口：', error.message);
+  process.exitCode = 1;
 });
