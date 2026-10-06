@@ -1,3 +1,17 @@
+# 当前课堂 API 与兼容示例
+
+## 当前课堂页面使用的接口
+
+- `POST /api/greeting`：提交 receiver、occasion、tone、details，返回 text、mode、reason 等字段；无模型密钥时返回本地文案，不等于真实模型调用成功。
+- `POST /api/card`：保存卡片，返回 slug 与分享路径；字段白名单是第3课 TODO03。
+- `GET /api/card?slug=实际标识`：读取已保存卡片；标识校验是第3课 TODO04。
+- `GET /c/实际标识`：打开分享页；HTML 转义是第3课 TODO05。
+- 本地/Ubuntu 由 `server/app.js` 复用课堂函数，并通过 CARD_STORAGE_PATH 保存 JSON 文件；Netlify 路线使用 Blobs。两个环境的数据不自动同步。
+
+## 旧版兼容接口（不是当前页面的请求路径）
+
+以下记录保留供比较学习，不能用这些接口的成功来替代本课 TODO 验收。
+
 # P4 API 契约
 
 ## `GET /health`

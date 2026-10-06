@@ -13,7 +13,7 @@ const json = (body, status = 200) =>
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   })
 
-export default async function handler(request) {
+export default async function handler(request, context) {
   if (request.method !== 'POST') return json({ error: { message: '只支持 POST' } }, 405)
 
   let input
@@ -28,7 +28,7 @@ export default async function handler(request) {
     return json({ error: { code: error.code || 'INVALID_INPUT', message: error.message } }, error.status || 400)
   }
 
-  const apiKey = process.env.MINIMAX_API_KEY
+  const apiKey = context?.env?.MINIMAX_API_KEY ?? globalThis.Netlify?.env.get('MINIMAX_API_KEY')
   if (apiKey) {
     try {
       const result = await generateWithMiniMax(input, { apiKey })
@@ -41,8 +41,8 @@ export default async function handler(request) {
       // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
       // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
       // 页面上看得到的结果：卡片下面那行"本次文案来自 · ……"，
-      // 现在不管发生什么都只会显示"本地文案库"，看不出到底出了什么事。
-      // 做完之后能分别显示"模型响应超时""未配置模型密钥"等等。
+      // 进入 catch 的错误都被归为 ai_unavailable；未配置密钥走另一个分支，起点就能识别。
+      // 做完之后 catch 能区分超时和上游错误；不要只用“删除密钥”验收本项。
       //
       // 本任务要补全：把失败原因如实传给前端：
       //   const reason = error?.name === 'AbortError' ? 'ai_timeout'

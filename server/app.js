@@ -1,3 +1,7 @@
+import greetingHandler from '../netlify/functions/greeting.js'
+import cardHandler from '../netlify/functions/card.js'
+import viewHandler from '../netlify/functions/view.js'
+import { createFileCardStore } from './card-store.js'
 import express from 'express'
 import { randomUUID } from 'node:crypto'
 import { normalizeCardInput, PROMPT_VERSION } from './prompt.js'
@@ -55,6 +59,25 @@ export function createApp(options = {}) {
       providerConfigured: env.AI_PROVIDER === 'openai' && Boolean(env.OPENAI_API_KEY),
     }),
   )
+  // 共用 Web Request/Response 处理函数，让学生的 TODO 同时作用于本地和平台部署。
+  const cardStore = options.cardStore ?? createFileCardStore(env.CARD_STORAGE_PATH || './var/cards')
+  const adapt = handler => async (req, res, next) => {
+    try {
+      const request = new Request('http://127.0.0.1' + req.originalUrl, {
+        method: req.method,
+        headers: { 'content-type': 'application/json' },
+        ...(['GET', 'HEAD'].includes(req.method) ? {} : { body: JSON.stringify(req.body ?? {}) }),
+      })
+      // Express 已解码路径参数；函数按平台格式再解码一次，因此传入重新编码后的值。
+      const response = await handler(request, { cardStore, env, params: { slug: encodeURIComponent(req.params.slug || '') } })
+      res.status(response.status)
+      response.headers.forEach((value, name) => res.set(name, value))
+      res.send(Buffer.from(await response.arrayBuffer()))
+    } catch (error) { next(error) }
+  }
+  app.all('/api/greeting', adapt(greetingHandler))
+  app.all('/api/card', adapt(cardHandler))
+  app.get('/c/:slug', adapt(viewHandler))
   app.post('/api/greetings/generate', async (req, res) => {
     try {
       const input = normalizeCardInput(req.body)

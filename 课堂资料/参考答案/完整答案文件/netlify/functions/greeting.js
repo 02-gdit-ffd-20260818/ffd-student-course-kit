@@ -13,7 +13,7 @@ const json = (body, status = 200) =>
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   })
 
-export default async function handler(request) {
+export default async function handler(request, context) {
   if (request.method !== 'POST') return json({ error: { message: '只支持 POST' } }, 405)
 
   let input
@@ -28,7 +28,7 @@ export default async function handler(request) {
     return json({ error: { code: error.code || 'INVALID_INPUT', message: error.message } }, error.status || 400)
   }
 
-  const apiKey = process.env.MINIMAX_API_KEY
+  const apiKey = context?.env?.MINIMAX_API_KEY ?? globalThis.Netlify?.env.get('MINIMAX_API_KEY')
   if (apiKey) {
     try {
       const result = await generateWithMiniMax(input, { apiKey })
