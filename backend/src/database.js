@@ -49,7 +49,7 @@ const initializeSchema = (database) => {
   database.exec('PRAGMA busy_timeout = 5000');
   database.exec('PRAGMA synchronous = NORMAL');
 
-  database.exec(`
+  const schemaSql = `
     CREATE TABLE IF NOT EXISTS metadata (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -75,9 +75,8 @@ const initializeSchema = (database) => {
     -- 页面上看得到的结果：用同一个邮箱注册两次，第二次被挡住——
     -- 而且**就算绕过后端代码直接写数据库，也挡得住**。
     --
-    -- 本任务要补全：把下面四处改成真正的约束：
-    --   id TEXT PRIMARY KEY          主键，唯一且不能为空
-    --   name TEXT NOT NULL
+    -- 本任务要补全：把下面三处改成真正的约束；name 保持可空，资料姓名还可能保存在 profile_json 中：
+    --   id TEXT PRIMARY KEY NOT NULL 主键且显式禁止 NULL；SQLite 的 TEXT 主键需要写明 NOT NULL
     --   email TEXT NOT NULL UNIQUE   不能为空、不能重复
     --   password TEXT NOT NULL
     --
@@ -85,7 +84,8 @@ const initializeSchema = (database) => {
     -- 现在一个 UNIQUE 就够了，而且更可靠——
     -- 代码可能有别的入口绕过去，约束没有。
     --
-    -- 怎么亲眼看到：npm run db:status 会打印表结构。
+    -- 改完按手册换未使用的 DATABASE_PATH，保留旧库；用事务试写验证拒绝。
+    -- db:status 显示路径和数量，不打印建表结构；不能用注释里出现 UNIQUE 当证据。
     -- ====================================================
     CREATE TABLE IF NOT EXISTS users (
       id TEXT,
@@ -141,7 +141,21 @@ const initializeSchema = (database) => {
       synonyms_json TEXT NOT NULL,
       extra_json TEXT NOT NULL DEFAULT '{}'
     );
-  `);
+  `;
+  // 教师提供的启动保护：先在内存中解析本阶段的建表语句，再比较已有 users 表。
+  // CREATE IF NOT EXISTS 不会修改旧表；结构不同必须停止，不能把旧表当新表验收。
+  const expected = new DatabaseSync(':memory:');
+  try {
+    expected.exec(schemaSql);
+    const existing = database.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get();
+    const wanted = expected.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get();
+    const normalize = sql => sql.replace(/--[^\n]*/g, '').replace(/\s+/g, '').toLowerCase();
+    if (existing && normalize(existing.sql) !== normalize(wanted.sql)) {
+      throw new Error('[LESSON13_SCHEMA_MISMATCH] users 旧表与当前代码不同。原数据已保留：' + sqlitePath +
+        '。课堂实验请停止后端，在 backend/.env 将 DATABASE_PATH 改为未使用的新文件路径；真实数据需先备份再迁移。');
+    }
+  } finally { expected.close(); }
+  database.exec(schemaSql);
 };
 
 const loadData = (database) => {
@@ -345,10 +359,17 @@ const openDatabase = () => {
 
   fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
   sqlite = new DatabaseSync(sqlitePath);
-  initializeSchema(sqlite);
-  importSeedDataIfNeeded(sqlite);
-  sharedData = loadData(sqlite);
-  return sqlite;
+  try {
+    initializeSchema(sqlite);
+    importSeedDataIfNeeded(sqlite);
+    sharedData = loadData(sqlite);
+    return sqlite;
+  } catch (error) {
+    sqlite.close();
+    sqlite = null;
+    sharedData = null;
+    throw error;
+  }
 };
 
 const connectDB = async () => {
@@ -376,7 +397,7 @@ const getDatabaseInfo = () => {
       // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
       // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
       // 终端里看得到的结果：npm run db:status 打印出
-      // 「日志模式: wal」——这是确认 已写好的代码 真的生效的唯一办法。
+      // 「日志模式: wal」——这是从实际数据库查询得到的值，不是硬编码提示。
       //
       // 本任务要补全：查一下当前的日志模式并放进报告：
       //   database.prepare('PRAGMA journal_mode').get().journal_mode
@@ -386,11 +407,9 @@ const getDatabaseInfo = () => {
       // .sqlite-wal 和 .sqlite-shm 两个文件，最新的写入可能还在 -wal 里
       // 没合并进主文件。**备份时只复制主文件会丢数据。**
       //
-      // 所以备份 SQLite 的正确做法是二选一：
-      //   1) 先执行 PRAGMA wal_checkpoint(TRUNCATE) 把 WAL 合并进主文件，再复制
-      //   2) 把 .sqlite、.sqlite-wal、.sqlite-shm 三个文件一起复制
-      //
-      // 做完一定要**演练一次恢复**：备份 → 删库 → 恢复 → db:status 数字对得上。
+      // 使用手册的 backup-sqlite.js 创建一致性快照，不在运行中逐个复制这三个文件。
+      // checkpoint 之后仍可能有新写入，不能认为执行一次 checkpoint 就可随意复制。
+      // 恢复演练：打开备份副本核对数据；保留原库，不删除或覆盖原库。
       // 没有验证过恢复流程的备份，等于没有备份。
       // ========================================================
       journalMode: 'unknown',

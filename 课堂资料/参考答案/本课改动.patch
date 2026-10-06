@@ -9,9 +9,9 @@
 -  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
 -  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
 -  // 终端里看得到的结果：npm run db:status 打印出一张表，
--  // 列出每张表各有多少行——**这是你确认"数据真的进去了"的唯一手段**。
+-  // 列出每张表各有多少行——用于检查当前文件中的实际行数，也可用 Navicat 查询核对。
 -  //
--  // 本任务要补全：用 console.table(summary) 把统计结果打印成表格。
+-  // 本任务要补全：用 console.table(info.counts) 把统计结果打印成表格。
 -  //   console.table 比 console.log 好在哪：它会自动对齐成表格，
 -  //   几十行数据一眼能扫完。
 -  //
@@ -39,9 +39,8 @@
 -    -- 页面上看得到的结果：用同一个邮箱注册两次，第二次被挡住——
 -    -- 而且**就算绕过后端代码直接写数据库，也挡得住**。
 -    --
--    -- 本任务要补全：把下面四处改成真正的约束：
--    --   id TEXT PRIMARY KEY          主键，唯一且不能为空
--    --   name TEXT NOT NULL
+-    -- 本任务要补全：把下面三处改成真正的约束；name 保持可空，资料姓名还可能保存在 profile_json 中：
+-    --   id TEXT PRIMARY KEY NOT NULL 主键且显式禁止 NULL；SQLite 的 TEXT 主键需要写明 NOT NULL
 -    --   email TEXT NOT NULL UNIQUE   不能为空、不能重复
 -    --   password TEXT NOT NULL
 -    --
@@ -49,11 +48,12 @@
 -    -- 现在一个 UNIQUE 就够了，而且更可靠——
 -    -- 代码可能有别的入口绕过去，约束没有。
 -    --
--    -- 怎么亲眼看到：npm run db:status 会打印表结构。
+-    -- 改完按手册换未使用的 DATABASE_PATH，保留旧库；用事务试写验证拒绝。
+-    -- db:status 显示路径和数量，不打印建表结构；不能用注释里出现 UNIQUE 当证据。
 -    -- ====================================================
      CREATE TABLE IF NOT EXISTS users (
 -      id TEXT,
-+      id TEXT PRIMARY KEY,
++      id TEXT PRIMARY KEY NOT NULL,
        username TEXT,
        name TEXT,
 -      email TEXT,
@@ -89,7 +89,7 @@
        profile_json TEXT,
        created_at TEXT NOT NULL,
        updated_at TEXT,
-@@ -371,29 +329,7 @@
+@@ -392,27 +350,7 @@
    const database = openDatabase();
    return {
      path: sqlitePath,
@@ -98,7 +98,7 @@
 -      // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
 -      // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
 -      // 终端里看得到的结果：npm run db:status 打印出
--      // 「日志模式: wal」——这是确认 已写好的代码 真的生效的唯一办法。
+-      // 「日志模式: wal」——这是从实际数据库查询得到的值，不是硬编码提示。
 -      //
 -      // 本任务要补全：查一下当前的日志模式并放进报告：
 -      //   database.prepare('PRAGMA journal_mode').get().journal_mode
@@ -108,11 +108,9 @@
 -      // .sqlite-wal 和 .sqlite-shm 两个文件，最新的写入可能还在 -wal 里
 -      // 没合并进主文件。**备份时只复制主文件会丢数据。**
 -      //
--      // 所以备份 SQLite 的正确做法是二选一：
--      //   1) 先执行 PRAGMA wal_checkpoint(TRUNCATE) 把 WAL 合并进主文件，再复制
--      //   2) 把 .sqlite、.sqlite-wal、.sqlite-shm 三个文件一起复制
--      //
--      // 做完一定要**演练一次恢复**：备份 → 删库 → 恢复 → db:status 数字对得上。
+-      // 使用手册的 backup-sqlite.js 创建一致性快照，不在运行中逐个复制这三个文件。
+-      // checkpoint 之后仍可能有新写入，不能认为执行一次 checkpoint 就可随意复制。
+-      // 恢复演练：打开备份副本核对数据；保留原库，不删除或覆盖原库。
 -      // 没有验证过恢复流程的备份，等于没有备份。
 -      // ========================================================
 -      journalMode: 'unknown',

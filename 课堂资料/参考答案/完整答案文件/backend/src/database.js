@@ -49,7 +49,7 @@ const initializeSchema = (database) => {
   database.exec('PRAGMA busy_timeout = 5000');
   database.exec('PRAGMA synchronous = NORMAL');
 
-  database.exec(`
+  const schemaSql = `
     CREATE TABLE IF NOT EXISTS metadata (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -66,7 +66,7 @@ const initializeSchema = (database) => {
     );
 
     CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
+      id TEXT PRIMARY KEY NOT NULL,
       username TEXT,
       name TEXT,
       email TEXT NOT NULL UNIQUE,
@@ -99,7 +99,21 @@ const initializeSchema = (database) => {
       synonyms_json TEXT NOT NULL,
       extra_json TEXT NOT NULL DEFAULT '{}'
     );
-  `);
+  `;
+  // 教师提供的启动保护：先在内存中解析本阶段的建表语句，再比较已有 users 表。
+  // CREATE IF NOT EXISTS 不会修改旧表；结构不同必须停止，不能把旧表当新表验收。
+  const expected = new DatabaseSync(':memory:');
+  try {
+    expected.exec(schemaSql);
+    const existing = database.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get();
+    const wanted = expected.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get();
+    const normalize = sql => sql.replace(/--[^\n]*/g, '').replace(/\s+/g, '').toLowerCase();
+    if (existing && normalize(existing.sql) !== normalize(wanted.sql)) {
+      throw new Error('[LESSON13_SCHEMA_MISMATCH] users 旧表与当前代码不同。原数据已保留：' + sqlitePath +
+        '。课堂实验请停止后端，在 backend/.env 将 DATABASE_PATH 改为未使用的新文件路径；真实数据需先备份再迁移。');
+    }
+  } finally { expected.close(); }
+  database.exec(schemaSql);
 };
 
 const loadData = (database) => {
@@ -303,10 +317,17 @@ const openDatabase = () => {
 
   fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
   sqlite = new DatabaseSync(sqlitePath);
-  initializeSchema(sqlite);
-  importSeedDataIfNeeded(sqlite);
-  sharedData = loadData(sqlite);
-  return sqlite;
+  try {
+    initializeSchema(sqlite);
+    importSeedDataIfNeeded(sqlite);
+    sharedData = loadData(sqlite);
+    return sqlite;
+  } catch (error) {
+    sqlite.close();
+    sqlite = null;
+    sharedData = null;
+    throw error;
+  }
 };
 
 const connectDB = async () => {
