@@ -32,26 +32,26 @@ const checks = [
   ['三种界面状态齐全，且确实没有错误态（P4-01）',
     ['idle', 'loading', 'ready'].every((s) => app.includes(`'${s}'`)) &&
       !app.includes("status.value = 'error'")],
-  ['卡面按 id 查找并有兜底（P4-01 TODO 01）',
+  ['卡面按 id 查找并有兜底（P4-01 TODO 05）',
     themes.includes('themes.find') && themes.includes('?? themes[0]')],
-  ['提交按钮受 computed 控制（P4-01 TODO 02）',
+  ['提交按钮受 computed 控制（P4-01 TODO 06）',
     app.includes('canSubmit') && app.includes(":disabled=\"!canSubmit\"")],
-  ['选中态用 aria-pressed 表达（P4-01 TODO 07）', app.includes(':aria-pressed=')],
+  ['选中态用 aria-pressed 表达（P4-01 TODO 04）', app.includes(':aria-pressed=')],
 
   // ---- 第 2 课：后端与 AI ----
   ['场景与语气用白名单校验（P4-02 TODO 01）',
     prompt.includes('OCCASIONS.includes') && prompt.includes('TONES.includes')],
   ['输入先归一化再校验（P4-02 TODO 02）', prompt.includes("replace(/[<>]/g")],
   ['用的是 MiniMax-M3', minimax.includes("MINIMAX_MODEL = 'MiniMax-M3'")],
-  ['检查 HTTP 状态码（P4-02 TODO 03）', minimax.includes('!response.ok')],
-  ['检查业务状态码 base_resp（P4-02 TODO 04）', minimax.includes('base_resp')],
+  ['检查 HTTP 状态码（P4-02 TODO 04）', minimax.includes('!response.ok')],
+  ['检查业务状态码 base_resp（已提供）', minimax.includes('base_resp')],
   ['清洗模型输出（P4-02 TODO 05）', minimax.includes('cleanOutput')],
-  ['外部请求有超时（P4-02 TODO 06）',
+  ['外部请求有超时（已提供）',
     minimax.includes('AbortController') && minimax.includes('clearTimeout')],
-  ['失败降级并如实说明原因（P4-02 TODO 07）',
+  ['失败降级并如实说明原因（P4-02 TODO 03）',
     greeting.includes('no_api_key') && greeting.includes('ai_timeout') && greeting.includes("mode: 'fallback'")],
   ['密钥只在服务端读，前端代码里没有',
-    greeting.includes('process.env.MINIMAX_API_KEY') && !app.includes('MINIMAX_API_KEY')],
+    greeting.includes("Netlify?.env.get('MINIMAX_API_KEY')") && greeting.includes('context?.env?.MINIMAX_API_KEY') && !app.includes('MINIMAX_API_KEY')],
   ['minimax.js 自己不读环境变量（好测、可复用）', !minimax.includes('process.env')],
 
   // ---- 第 3 课：上线 ----
@@ -59,14 +59,14 @@ const checks = [
   ['随机码去掉了易混字符 0/o/1/l/i（P4-03 TODO 02）',
     /const ALPHABET = '[^']+'/.test(slug) &&
       !/const ALPHABET = '[^']*[0o1liI][^']*'/.test(slug)],
-  ['slug 进存储前有校验（P4-03 TODO 03）', slug.includes('isSafeSlug')],
-  ['存贺卡时字段走白名单（P4-03 TODO 04）', card.includes('function sanitize')],
-  ['撞名时换一个而不是覆盖（P4-03 TODO 05）',
-    card.includes('candidateSlugs') && card.includes('if (taken) continue')],
-  ['分享页对用户内容转义，且 & 第一个换（P4-03 TODO 06）',
+  ['slug 进存储前有校验（P4-03 TODO 04）', slug.includes('isSafeSlug')],
+  ['存贺卡时字段走白名单（P4-03 TODO 03）', card.includes('function sanitize')],
+  ['撞名时换一个而不是覆盖（已提供）',
+    card.includes('candidateSlugs') && card.includes('if (taken) continue') && card.includes('onlyIfNew: true') && card.includes('modified === false')],
+  ['分享页对用户内容转义，且 & 第一个换（P4-03 TODO 05）',
     view.includes('&amp;') && view.includes('&lt;') && view.includes('&#39;') &&
       view.indexOf('&amp;') < view.indexOf('&lt;')],
-  ['分享页可被 CDN 缓存（P4-03 TODO 07）', view.includes('s-maxage=')],
+  ['分享页可被 CDN 缓存（已提供）', view.includes('s-maxage=')],
   ['生成接口不缓存（和分享页正好相反）', greeting.includes("'no-store'")],
 
   // ---- 产品定位：分享页必须干净 ----
