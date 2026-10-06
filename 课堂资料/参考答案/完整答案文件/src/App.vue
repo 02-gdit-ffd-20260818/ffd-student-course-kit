@@ -79,14 +79,16 @@ let activeLineEl = null
 // 本任务要补全：
 //   watch(activeLine, () => {
 //     if (!activeLineEl || !lyricBox.value) return
-//     activeLineEl.scrollIntoView({ block: 'center', behavior: 'smooth' })
-//   })
+//     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+//     activeLineEl.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'instant' : 'smooth' })
+//   }, { flush: 'post' })
+// flush: 'post' 等 Vue 更新歌词 DOM 后才滚动，否则滚到的是上一句。
 //
 // **`block: 'center'` 是关键**。默认值是 'start'，那样当前句会滚到最顶上——
 // 人眼习惯盯着中间那一行，滚到顶上反而不好读。**这一个参数的差别，体验差很多。**
 //
 // `behavior: 'smooth'` 是平滑滚动。注意样式表里配套写了
-// @media (prefers-reduced-motion: reduce) 把它关掉——
+// 仅 CSS 不能覆盖 JS 显式 smooth；上面的 matchMedia 也要检查减少动效偏好。
 // **有些人对动效敏感，系统里设置了"减少动态效果"，我们要尊重这个设置。**
 // ==========================================================
 
@@ -155,12 +157,12 @@ async function search(word) {
       : `在「${searchedSource.value}」找到 ${response.items.length} 首`
     if (response.fellBack) sourceKey.value = response.key
     remember(clean)
-  } else if (response.tried.some(item => item.reason)) {
+  } else if (response.tried.length > 0 && response.tried.every(item => item.reason && item.reason !== '没有匹配结果')) {
     searchState.value = 'error'
-    notice.value = '几个音源都没响应，试试「课堂合成音」，它不联网也能用'
+    notice.value = '尝试的音源暂时不可用；可选择「课堂合成音」搜索“练习曲”。搜索“断网”是刻意触发失败的课堂测试。'
   } else {
     searchState.value = 'empty'
-    notice.value = '没有找到，换个关键词试试'
+    notice.value = sourceKey.value === 'mock' ? '课堂合成音只有三首示例，请搜索“练习曲”或“音乐”；没有匹配结果不代表断网。' : '没有找到，换个关键词试试；空结果不代表网络故障。'
   }
 }
 
@@ -320,8 +322,9 @@ function onTimeUpdate(event) {
 //
 // 本任务要补全：
 //   queue.playerState = 'error'
-//   notice.value = '这一首播不出来（音源可能失效了），已自动跳到下一首'
-//   setTimeout(() => playNext(true), 800)
+//   队列少于两首时只提示换曲，不安排重试。否则显示即将跳过的提示。
+//   setTimeout(() => playNext(false), 800)
+// false 表示跳过当前曲目，不按“自然播完”处理；否则单曲循环会重试坏曲。
 //
 // **为什么要等 800 毫秒再跳**：立刻跳的话用户根本看不清发生了什么，
 // 会觉得"歌自己乱换"。留一点时间让提示被看见。
@@ -400,8 +403,8 @@ watch(
 // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
 // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
 // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
-// 页面上看得到的结果：现在按空格没反应。
-// 做完之后：空格播放/暂停、← → 快退快进、Shift+← → 切歌、M 静音、R 换播放模式。
+// 页面上看得到的结果：起点已有快捷键，但在输入框打空格也会误触。
+// 做完之后：输入框不触发快捷键；页面空白处原有快捷键继续可用。
 //
 // 本任务要补全：补上第一行那个判断——
 //   const tag = event.target.tagName
@@ -436,8 +439,11 @@ try {
   queue.restore(JSON.parse(localStorage.getItem('p5-queue') || 'null'))
   history.value = JSON.parse(localStorage.getItem('p5-history') || '[]')
   theme.value = localStorage.getItem('p5-theme') || 'light'
-  const savedVolume = Number(localStorage.getItem('p5-volume'))
-  if (Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) volume.value = savedVolume
+  // getItem 没有保存值时返回 null；Number(null) 是 0，不能当成用户选择了静音。
+  const storedVolume = localStorage.getItem('p5-volume')
+  const savedVolume = Number(storedVolume)
+  if (storedVolume !== null && storedVolume.trim() !== '' && Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) volume.value = savedVolume
+  if (audio.value) audio.value.volume = volume.value
   const savedMode = localStorage.getItem('p5-mode')
   if (PLAY_MODES.some(mode => mode.key === savedMode)) playMode.value = savedMode
 } catch {
@@ -458,6 +464,7 @@ watch(volume, value => localStorage.setItem('p5-volume', String(value)))
 watch(playMode, value => localStorage.setItem('p5-mode', value))
 
 onMounted(() => {
+  if (audio.value) audio.value.volume = volume.value
   document.documentElement.dataset.theme = theme.value
   window.addEventListener('keydown', onKey)
   // 先把流行歌单在后台拉起来，等用户想搜的时候就是秒出
