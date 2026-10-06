@@ -1,10 +1,10 @@
 --- 学生起步/lesson-15/compose.yaml
 +++ 本课完成后/compose.yaml
-@@ -5,47 +5,11 @@
+@@ -5,46 +5,11 @@
      image: postgres:17-alpine
      restart: unless-stopped
      environment:
--            # ======== 第15课 TODO 04（简单）：密码从 .env 读，不写进 compose ========
+-            # ======== 第15课 TODO 04（简单）：数据库名称和账号也从 .env 读（密码已接好） ========
 -      # 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
 -      # 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
 -      # 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
@@ -13,18 +13,19 @@
 -      # 终端里看得到的结果：docker compose config 能看到密码被替换成了
 -      # .env 里的真实值，但 compose.yaml 本身里只有占位符。
 -      #
--      # 本任务要补全：改成 ${POSTGRES_PASSWORD}，真实值写在同目录的 .env 里。
+-      # 密码从起点就读取 .env，避免前面任务因凭据不一致而启动失败。
+-      # 本项把 POSTGRES_DB 和 POSTGRES_USER 也改成对应环境变量，密码这一行保留。
 -      #
--      # **注意一个真实踩过的坑**：.env 里的值如果含 #，
--      # # 后面的内容会被当成注释截断。
--      # 比如 POSTGRES_PASSWORD=Abc#2026 实际读到的是 Abc，
--      # 表现出来就是"密码明明对的却连不上"。
--      # 含特殊字符时要加引号：POSTGRES_PASSWORD="Abc#2026"
+-      # Compose 未加引号的值中，空格后的 # 才开始行内注释。
+-      # Abc#2026 不会截断；Abc #说明 的值才是 Abc。
+-      # 需要按字面保留含 $ 等字符的值时可用单引号。密钥优先使用随机 base64url。
 -      # ======================================================
 -      POSTGRES_DB: personalink
 -      POSTGRES_USER: personalink
--      POSTGRES_PASSWORD: personalink123
--        # ======== 第15课 TODO 01（极简单）：给数据库加上持久卷和健康检查 ========
++      POSTGRES_DB: ${POSTGRES_DB}
++      POSTGRES_USER: ${POSTGRES_USER}
+       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+-        # ======== 第15课 TODO 01（极简单）：给数据库加上持久卷（健康检查已提供） ========
 -    # 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
 -    # 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
 -    # 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
@@ -32,10 +33,10 @@
 -    # 数据库的数据必须放在**卷（volume）**里，卷独立于容器存在。
 -    #
 -    # 终端里看得到的结果：docker compose down 再 up，
--    # **数据还在**；加 -v 参数（连卷一起删）再 up，数据才没。
--    # 这一对实验是本课最重要的演示。
+-    # **数据还在**；不要运行 down -v，它会删除数据卷。
+-    # 用保留数据的重建验证持久化，不要求破坏性对照实验。
 -    #
--    # TODO 两件事：
+-    # TODO：补上命名卷挂载，保留下方已有健康检查。讲读两部分：
 -    #   1) volumes: 把 postgres_data 挂到 /var/lib/postgresql/data
 -    #      （这是 PostgreSQL 存数据的目录）
 -    #   2) healthcheck: 用 pg_isready 定期检查数据库活没活
@@ -45,15 +46,12 @@
 -    # 有了健康检查，后端可以配 depends_on: condition: service_healthy，
 -    # **等数据库真正就绪了再启动**。
 -    # ========================================================
-+      POSTGRES_DB: ${POSTGRES_DB}
-+      POSTGRES_USER: ${POSTGRES_USER}
-+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 +    volumes:
 +      - postgres_data:/var/lib/postgresql/data
      healthcheck:
        test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
        interval: 10s
-@@ -69,24 +33,9 @@
+@@ -68,24 +33,9 @@
      volumes:
        - ./data/uploads:/app/uploads
        - ./logs:/app/logs
@@ -81,7 +79,7 @@
      networks: [internal]
      security_opt: [no-new-privileges:true]
      logging:
-@@ -99,25 +48,7 @@
+@@ -98,25 +48,7 @@
        dockerfile: docker/frontend/Dockerfile
      restart: unless-stopped
      ports:
