@@ -19,7 +19,26 @@ export function validateArticleInput(input) {
   // 直接 .trim() 会抛异常，那就成了 500 而不是该有的 400。
   const title = typeof input.title === 'string' ? input.title.trim() : ''
   const summary = typeof input.summary === 'string' ? input.summary.trim() : ''
-  if (!title) errors.title = 'title required'
+  // ============ 第08课 TODO 03（简单）：标题和摘要必须校验 ============
+  // 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+  // 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+  // 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+  // 现在标题可以是空的，也可以是一万字——存进去之后列表页会被撑爆。
+  //
+  // 页面上看得到的结果：文章编辑页把标题清空点保存，
+  // **标题输入框下方出现红色提示**，而不是保存成功。
+  //
+  // 本任务要补全：补上四条判断：
+  //   标题为空      → errors.title = 'title required'
+  //   标题超过 60   → errors.title = 'title too long'
+  //   摘要为空      → errors.summary = 'summary required'
+  //   摘要超过 160  → errors.summary = 'summary too long'
+  //
+  // 注意错误是**按字段收集**到 errors 对象里，而不是遇到第一个就返回。
+  // 这样前端能把每条错误标在对应的输入框上，用户一次就能全改完，
+  // 不用"改一个、保存、又报一个"来回折腾。
+  // ====================================================
+if (!title) errors.title = 'title required'
   else if (title.length > 60) errors.title = 'title too long'
   if (!summary) errors.summary = 'summary required'
   else if (summary.length > 160) errors.summary = 'summary too long'

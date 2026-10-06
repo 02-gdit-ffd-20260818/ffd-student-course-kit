@@ -1,3 +1,4 @@
+import { assertCourseSchema } from './course-schema.js'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { seedArticles } from './data/seedArticles.js'
@@ -17,6 +18,31 @@ const schema = [
   )`,
   `CREATE TABLE IF NOT EXISTS articles (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- ============ 第08课 TODO 01（极简单）：给文章表加上约束 ============
+    -- 【参数拆解】CHECK(条件) 要求每一行满足条件；NOT NULL 禁止空值，UNIQUE 禁止重复。DEFAULT 只在未提供该列值时使用默认值，不会把显式传入的 NULL 自动修正。
+    -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
+    -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
+    -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
+    -- 现在这张表没有唯一 slug，也不限制状态，草稿和已发布分不清。
+    --
+    -- 页面上看得到的结果：做完之后，两篇文章用同一个链接名会被拒绝；
+    -- status 只能是 draft 或 published 两种，写错了数据库直接不收。
+    --
+    -- 本任务要补全：按手册补全九列：
+    --   slug         TEXT NOT NULL UNIQUE                文章地址不能重复
+    --   title/summary/content_json/tags_json  TEXT NOT NULL
+    --   status       TEXT NOT NULL
+    --                CHECK(status IN ('draft','published'))
+    --   author/published_at  TEXT NOT NULL
+    --   media_json   TEXT NOT NULL DEFAULT '[]'          默认空数组，不是 NULL
+    --
+    -- 想一想：为什么正文用 JSON 文本存在一列里，而不是再建一张"段落表"？
+    -- 因为正文永远是整篇一起读、整篇一起改，从来不需要"查出第 3 段"。
+    -- **按使用方式设计表结构**，不是越拆越对。
+    --
+    -- 怎么亲眼看到：npm run db:inspect 的建表语句里能看到 UNIQUE 和 CHECK。
+    -- 改了建表语句记得删掉 var/blog.sqlite 重启后端，否则不生效。
+    -- ==================================================
     slug         TEXT NOT NULL UNIQUE,
     title        TEXT NOT NULL,
     summary      TEXT NOT NULL,
@@ -29,9 +55,7 @@ const schema = [
   )`,
   `CREATE TABLE IF NOT EXISTS comments (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- ============ 第09课 TODO 01（极简单）：评论表和它的两个外键 ============
-    -- 【参数拆解】CHECK(条件) 要求每一行满足条件；NOT NULL 禁止空值，UNIQUE 禁止重复。DEFAULT 只在未提供该列值时使用默认值，不会把显式传入的 NULL 自动修正。
-    -- 【参数拆解】REFERENCES 表名(列名) 指明外键对应哪张表哪一列；ON DELETE CASCADE 表示删除被引用的父记录时一并删除子记录，不是删除整张子表。
+    -- ============ 第09课任务 01（后续预留，本课不要修改）（极简单）：评论表和它的两个外键 ============
     -- 【修改边界】只改本任务注释指定的占位代码；保留函数、路由、选择器等外层结构，也不要提前修改其他课次 TODO。
     -- 【动手顺序】先逐条读要求，把每条要求写成一个条件或一条语句；再按注释给出的顺序组合，不要凭感觉一次写一大段。
     -- 【完成标准】保存后执行本课手册该 TODO 的“自己验证”；结果、状态码或页面效果全部一致才算完成，卡住再对照本课教师答案。
@@ -73,6 +97,13 @@ export async function openBlogDb(env = process.env) {
   const query = async (sql, params = []) =>
     database.prepare(sql.replace(/\$\d+/g, '?')).all(...params)
   for (const sql of schema) await query(sql)
+  // 改代码不会更新旧表；必须明确处理数据库结构变化，不能静默继续注册或写文章。
+  try {
+    assertCourseSchema(database, DatabaseSync, schema, databasePath === ':memory:' ? databasePath : resolve(databasePath))
+  } catch (error) {
+    database.close()
+    throw error
+  }
 
   // 兼容较早版本生成的数据库：旧表没有 media_json 时自动补列。
   const columns = await query('PRAGMA table_info(articles)')
