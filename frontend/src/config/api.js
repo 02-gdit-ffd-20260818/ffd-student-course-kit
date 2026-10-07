@@ -1,15 +1,9 @@
 // API 地址配置。
 //
-// 本地开发：默认请求本机的 Express 服务。
-// 线上部署：推荐通过 VITE_API_BASE_URL 指定后端公网地址；如果没有指定，
-// 则默认请求当前域名下的 /api，适用于 Nginx 反向代理场景。
-
-const localHosts = ['localhost', '127.0.0.1']
-const isLocal = localHosts.includes(window.location.hostname)
-const configuredApi = import.meta.env.VITE_API_BASE_URL
-
-export const API_BASE_URL = configuredApi || (
-  isLocal
-    ? 'http://localhost:3003/api'
-    : `${window.location.origin}/api`
-)
+// 默认 /api 表示当前页面的同源接口，保留页面的协议、域名和端口。
+// 开发时由 Vite 的 /api 代理转给后端；上线时由 Nginx 转发。
+// SSH 隧道也是访问当前页面的 /api，不能根据 localhost 猜测后端端口。
+// 只有前后端确实分开部署时，才在构建前设置 VITE_API_BASE_URL；
+// 例如 https://api.example.com/api，并另行配置后端跨域允许来源。
+const configuredApi = String(import.meta.env.VITE_API_BASE_URL || '').trim()
+export const API_BASE_URL = configuredApi || '/api'
