@@ -1,20 +1,8 @@
-// API配置文件
-// 根据环境自动选择API地址
-
-// 获取当前主机名
-const getApiBaseUrl = () => {
-  // 获取当前页面的协议和主机名
-  const protocol = window.location.protocol;
-  const hostname = window.location.hostname;
-  
-  // 如果是localhost或127.0.0.1，使用localhost
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:3003/api';
-  }
-  
-  // 否则使用当前主机的80端口（通过Nginx代理）
-  // 这样可以避免直接访问后端端口，而是通过Nginx代理
-  return `${protocol}//${hostname}/api`;
-};
-
-export const API_BASE_URL = getApiBaseUrl();
+// API 地址配置。
+// 默认 /api 表示当前页面的同源接口，保留协议、域名和端口。
+// 开发时由 Vite 代理转给后端；Docker 上线时由前端 Nginx 转发。
+// SSH 隧道也是访问当前页面的 /api，不能根据 localhost 猜测后端端口。
+// 只有前后端分开部署时，才在构建前设置 VITE_API_BASE_URL；
+// 例如 https://api.example.com/api，并配置后端跨域允许来源。
+const configuredApi = String(import.meta.env.VITE_API_BASE_URL || '').trim()
+export const API_BASE_URL = configuredApi || '/api'

@@ -44,6 +44,9 @@ jobs:
         run: npm ci
 
       - name: Run PostgreSQL backend tests
+        env:
+          NODE_ENV: test
+          ALLOW_DATABASE_RESET: personalink_test
         run: npm test
 
       - name: Build frontend
