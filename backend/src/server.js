@@ -33,7 +33,8 @@ const startServer = async () => {
   await connectDB();
 
   const server = await new Promise((resolve, reject) => {
-    const listener = app.listen(PORT, '0.0.0.0', () => {
+    // 默认只供本机和 Nginx 访问；HOST=0.0.0.0 仅用于已配置访问限制的容器等环境。
+    const listener = app.listen(PORT, process.env.HOST || '127.0.0.1', () => {
       console.log(`Server is running on http://localhost:${PORT}`);
       resolve(listener);
     });
