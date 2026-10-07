@@ -6,6 +6,9 @@ const run = async () => {
   await connectDB();
   const [[classCount]] = await pool.query('SELECT COUNT(*) AS total FROM classes');
   const [[userCount]] = await pool.query('SELECT COUNT(*) AS total FROM users');
+  // 只统计不符合 bcrypt 编码格式的记录数，不输出密码摘要本身。
+  // 格式检查不是破解验证，也不能证明原密码足够强。
+  const [[unhashed]] = await pool.query("SELECT COUNT(*) AS total FROM users WHERE password_hash NOT REGEXP '^[$]2[aby][$][0-9]{2}[$][./A-Za-z0-9]{53}$'");
   const [[studentCount]] = await pool.query("SELECT COUNT(*) AS total FROM users WHERE role <> 'admin'");
   const [[groupCount]] = await pool.query('SELECT COUNT(*) AS total FROM synonym_groups');
   const [[hobbyCount]] = await pool.query('SELECT COUNT(*) AS total FROM standard_hobbies');
@@ -18,6 +21,7 @@ const run = async () => {
     database: process.env.DB_NAME || 'personalink',
     classes: Number(classCount.total),
     users: Number(userCount.total),
+    not_hashed: Number(unhashed.total),
     students: Number(studentCount.total),
     synonymGroups: Number(groupCount.total),
     standardHobbies: Number(hobbyCount.total),
@@ -47,7 +51,7 @@ const run = async () => {
   };
   console.log(JSON.stringify(report, null, 2));
   // 全新站点允许管理员先登录后再创建第一个班级，因此班级数量可以为 0。
-  if (!report.users || report.orphanUsers || !report.adminExists || !report.adminPasswordHashed) process.exitCode = 1;
+  if (!report.users || report.not_hashed || report.orphanUsers || !report.adminExists || !report.adminPasswordHashed) process.exitCode = 1;
   await pool.end();
 };
 

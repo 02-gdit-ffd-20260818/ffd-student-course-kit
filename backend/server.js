@@ -56,7 +56,8 @@ app.use(errorHandler);
 const start = async () => {
   try {
     await connectDB();
-    app.listen(PORT, '0.0.0.0', () => {
+    // 默认只供本机和 Nginx 访问；HOST=0.0.0.0 仅用于已配置访问限制的容器等环境。
+    app.listen(PORT, process.env.HOST || '127.0.0.1', () => {
       console.log(`PersonaLink API is listening on port ${PORT}`);
     });
   } catch (error) {

@@ -72,7 +72,7 @@
    queueLimit: 0,
 --- 学生起步/lesson-14/backend/scripts/verify-mysql.js
 +++ 本课完成后/backend/scripts/verify-mysql.js
-@@ -23,25 +23,7 @@
+@@ -27,25 +27,7 @@
      standardHobbies: Number(hobbyCount.total),
      studentsWithStoredAvatar: Number(avatarStats.total),
      storedStudentAvatarBytes: Number(avatarStats.bytes),
