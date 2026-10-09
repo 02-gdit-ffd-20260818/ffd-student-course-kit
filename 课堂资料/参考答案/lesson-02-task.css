@@ -7,14 +7,14 @@
 
 :root {
   /* TODO 01（极简单）：全站标题颜色。改这一处，h1、h2 一起变。 */
-  --heading: #254a40;
+  --heading: #3a3a5c;
   --subheading: #7c6348;
 
   /* TODO 02（极简单）：页面底色。纯白刺眼，用带一点暖的"纸白"。 */
-  --background: #fbfaf6;
+  --background: #f7f8f9;
 
   /* TODO 03（简单）：正文字号。不要小于 16px，长段落读着累。 */
-  --body-size: 19px;
+  --body-size: 18px;
 
   /* TODO 04（简单）：行高。写 1.8 不写单位——带单位会把算好的固定值硬塞给子元素。
      中文字形方正笔画密，行高要比英文大：英文常用 1.5，中文用 1.75—1.9。 */
@@ -45,9 +45,9 @@ h1 span {
    背景色铺到 padding 为止，铺不到 margin——这是两者最直观的区别。 */
 h2 {
   font-size: 30px;
-  padding: 8px 14px;
-  border-left: 3px solid #b8a27d;
-  background: #edf1ea;
+  padding: 10px 16px;
+  border-left: 4px solid #b8a27d;
+  background: #e8eee7;
 }
 
 h3,
@@ -66,6 +66,11 @@ a {
 a:hover {
   color: var(--heading);
   text-decoration-thickness: 2px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--heading);
+  outline-offset: 3px;
 }
 
 .section {
