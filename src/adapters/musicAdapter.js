@@ -54,11 +54,11 @@ const lower = value => clean(value).toLowerCase()
 // ============================================================
 // 来源一：iTunes 公开搜索 —— 主力
 // ============================================================
-// 苹果官方接口，不需要密钥，跨域开放，**任何歌手都搜得到**，还自带高清封面。
+// 苹果公开搜索接口；结果受地区、曲库授权和网络影响，不保证每个歌手都有结果。
 // 代价：只给 30 秒试听（这正是苹果公开允许直接使用的那一段）。
 export class ItunesAdapter extends MusicAdapter {
   static label = '全球曲库'
-  static note = '苹果官方公开搜索 · 30 秒试听 · 任何歌手都搜得到'
+  static note = '苹果公开搜索 · 试听片段 · 结果受地区与曲库限制'
 
   async search(keyword, { signal } = {}) {
     const q = clean(keyword)
@@ -101,7 +101,7 @@ export class ItunesAdapter extends MusicAdapter {
 //   1. **两个镜像的字段名不一样**：一个给 name/artist，另一个给 title/author。
 //      → 归一化（normalize）负责抹平，外面看到的永远是同一种形状。
 //   2. **支持搜索的那个镜像，给的播放地址对付费曲目会 404**。
-//      → 所以搜索用 A 镜像，播放地址从 B 镜像重新拼。实测这样 8/8 都能播。
+//      → 搜索与播放端点分开配置；不保证可播放，不得借换源绕过付费或权限限制。
 //   3. **万一搜索镜像也挂了**，就退回"把公开歌单整个拉下来再本地筛"。
 //
 // 三层降级：真搜索 → 换平台再搜 → 本地歌单筛选。
@@ -421,8 +421,8 @@ export async function safeSearch(adapter, keyword, options = {}) {
  * 搜索的故障转移：先用用户选的音源，它不行就按顺序试其它的。
  *
  * **这是本项目"一个服务器挂了，另一个顶上"的总入口。**
- * 注意最后一个永远是课堂合成音——它不联网，所以**一定会成功**。
- * 这样界面就永远不会出现"什么都没有"的绝望状态。
+ * 仅当当前源发生错误才尝试下一源；正常返回空数组时停止，展示空状态。
+ * 合成音不需要网络，但也只匹配内置曲名；用“练习曲”可验证本地播放。
  */
 export async function searchWithFailover(preferredKey, keyword, options = {}) {
   const order = [

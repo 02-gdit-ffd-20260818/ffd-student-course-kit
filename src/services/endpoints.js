@@ -16,7 +16,7 @@
 export const METING_MIRRORS = {
   // 支持 type=search，字段是 title/author；但它给的播放地址对付费曲目会 404
   search: ['https://api.i-meto.com/meting/api'],
-  // 不支持 search，但 type=url 出来的直链很稳，字段是 name/artist
+  // 播放端点的可用性和权限需要另行核验，字段是 name/artist
   play: ['https://api.injahow.cn/meting/', 'https://api.i-meto.com/meting/api'],
   // 拉歌单两个都行，排在前面的先试
   playlist: ['https://api.injahow.cn/meting/', 'https://api.i-meto.com/meting/api'],
@@ -36,7 +36,7 @@ export const METING_PLAYLISTS = [
 export const METING_SERVERS = ['netease', 'tencent']
 
 // ---------- iTunes：苹果官方的公开搜索接口 ----------
-// 不需要密钥，跨域开放，**任何歌手都搜得到**，还自带高清封面。
+// 无需密钥；搜索结果受地区、曲库授权和网络影响，不保证每个歌手都有结果。
 // 代价是只给 30 秒试听片段（这是苹果官方允许公开使用的那一段）。
 export const ITUNES_ENDPOINT = 'https://itunes.apple.com/search'
 
