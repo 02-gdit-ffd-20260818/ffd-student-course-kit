@@ -95,7 +95,7 @@ const checks = [
   ['响应式断点', css.includes('@media (max-width: 620px)')],
 
   // ---- 交付 ----
-  ['CI 测试与构建', ci.includes('npm test') && ci.includes('npm run build')],
+  ['CI 测试与构建', (ci.includes('npm test') || (ci.includes('node --test ') && ci.includes('npm run test:component'))) && ci.includes('npm run build')],
   ['Netlify SPA fallback', netlify.includes('/index.html')],
 ]
 

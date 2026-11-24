@@ -11,5 +11,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: npm test
+      - run: node --test tests/adapter.test.mjs tests/failover.test.mjs tests/lyrics.test.mjs tests/playmode.test.mjs
+      - run: npm run test:component
+        env:
+          P5_LESSON: '1'
+          P5_STAGE: '4'
       - run: npm run build
