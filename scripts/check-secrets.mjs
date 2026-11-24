@@ -1,14 +1,18 @@
-import { execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 
-let files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).trim().split(/\r?\n/).filter(Boolean)
+// -z 用 NUL 分隔路径，保留中文文件名。ZIP 目录没有 Git 索引时改查工程文件。
+const tracked = spawnSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
+let files = tracked.status === 0 ? tracked.stdout.split('\0').filter(Boolean) : []
 if (!files.length) {
   async function walk(dir = '.') {
     const entries = await readdir(dir, { withFileTypes: true })
     const nested = await Promise.all(entries.map(async (entry) => {
-      if (['.git', 'node_modules', 'dist', '.netlify', 'coverage'].includes(entry.name)) return []
+      if (['.git', 'node_modules', 'dist', '.netlify', 'coverage', 'var'].includes(entry.name)) return []
+      if (entry.name === '.env' || (entry.name.startsWith('.env.') && entry.name !== '.env.example')) return []
       const path = dir === '.' ? entry.name : `${dir}/${entry.name}`
-      return entry.isDirectory() ? walk(path) : [path]
+      if (entry.isDirectory()) return walk(path)
+      return entry.isFile() ? [path] : []
     }))
     return nested.flat()
   }
