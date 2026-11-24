@@ -10,6 +10,6 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run check
-      - run: npm test
+      - run: node scripts/check-p2-stage.mjs 08 5
+      - run: npm run test:component
       - run: npm run build

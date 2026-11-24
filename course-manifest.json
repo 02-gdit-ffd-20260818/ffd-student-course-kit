@@ -4,6 +4,9 @@
   "lesson": 8,
   "mode": "standard",
   "previous": "lesson-07",
-  "add_paths": [],
+  "add_paths": [
+    ".github/workflows/ci.yml",
+    "scripts/check-p2-stage.mjs"
+  ],
   "course_repository": "https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git"
 }
