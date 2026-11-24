@@ -12,4 +12,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+        env:
+          P5_LESSON: '2'
+          P5_STAGE: '5'
       - run: npm run build

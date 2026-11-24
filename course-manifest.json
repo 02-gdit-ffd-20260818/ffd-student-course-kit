@@ -4,6 +4,8 @@
   "lesson": 2,
   "mode": "standard",
   "previous": "p5-lesson-01",
-  "add_paths": [],
+  "add_paths": [
+    ".github/workflows/ci.yml"
+  ],
   "course_repository": "https://github.com/02-gdit-ffd-20260818/ffd-student-course-kit.git"
 }
