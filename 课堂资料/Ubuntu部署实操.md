@@ -2,14 +2,14 @@
 
 ## 已验证的教师示例
 
-当前公开版本：P2内容发布平台 v3.3，服务器发布目录 `/srv/ffd-p2-v31/releases/20260921-104353`。
+教师公开演示为 P2 课程博客 v3.3，历史发布目录为 `/srv/ffd-p2-v31/releases/20260921-104353`。本课验收脚本要求当前工程的健康响应，运行时使用自己部署的第11课完成态。
 
 - 网页：<http://47.120.73.69/ffd-p2-v31/>
 - SQLite健康检查：<http://47.120.73.69/ffd-p2-v31-api/health>
 - 文章API：<http://47.120.73.69/ffd-p2-v31-api/api/articles>
 
 2026年9月21日完成真实验收：注册、登录、发表评论、越权删除返回403、图片/音频/视频访问、视频Range请求、API重启后评论仍存在、本人删除评论，全部通过。部署前数据库已备份。
-Windows课堂和Ubuntu服务器使用同一套SQLite代码。服务器数据库文件放在版本目录之外，重新部署代码不会覆盖数据。仅对自己的服务器操作；端口8080为教学网址，域名和HTTPS在正式发布时配置。
+本指南对应第11课完成态。练习时通过 SSH 隧道访问云端服务。服务器数据库和上传文件放在网页版本目录外。正式发布时由教师配置域名和 HTTPS。
 
 ## 账号与权限
 
@@ -91,21 +91,21 @@ curl下载，awk选校验行，sha256sum检验完整性，tar解压；node/npm�
 mkdir -p ~/apps
 cd ~/apps
 read -r -p 'Your repository HTTPS URL: ' studentRepo
+read -r -p 'Your completed lesson branch: ' studentBranch
 
 # 首次部署才clone；若目录已有工程，停止重复clone并检查。
-git clone "$studentRepo" p2
-cd p2
+git clone --single-branch --branch "$studentBranch" "$studentRepo" p2 && cd p2
 
 # 按锁文件安装；只在没有.env时生成配置。
 npm ci
-node tools/prepare-env.mjs
+(umask 077; npm run setup:app)
 
 # 生成前端静态文件。
 npm test
 npm run build
 ```
 
-本地prepare-env生成的密码不上传Git；服务器会生成自己的新密码，用编辑器或nano在服务器查看.env再登录。需要安装nano时sudo apt install -y nano。根目录执行nano .env，Ctrl+O回车保存、Ctrl+X退出。SESSION_SECRET与账号密码只留服务器。不要把数据库文件提交仓库。
+`--branch` 选择已完成第11课的个人分支。克隆失败时先停止，确认仓库和分支再重试。 `npm run setup:app` 在没有 `.env` 时生成随机会话密钥及管理员密码，已有配置会保留。括号开启子 Shell，`umask 077` 令新配置仅当前账号可读写。使用 `nano .env` 编辑，Ctrl+O 后回车保存，Ctrl+X 退出。账号密码、密钥及数据库留在服务器。
 
 ## 4. 持久数据和版本目录
 
@@ -120,10 +120,20 @@ serviceUser="$(id -un)"
 # 建立本项目专用数据、备份和网页发布目录。
 sudo install -d -o "$serviceUser" -g "$(id -gn)" /srv/apps/p2-blog/data /srv/apps/p2-blog/backups /srv/apps/p2-blog/releases
 
-# 仅数据库项目需要把.env中的DATABASE_PATH改为下面持久路径。
+# 编辑 .env，将数据库、媒体和备份分别指向持久目录。
+nano .env
 ```
 
-在nano .env中将DATABASE_PATH改为`/srv/apps/p2-blog/data/blog.sqlite`。
+在已有键上改值，每个键只保留一行。已有线上工程沿用原来确认过的数据路径。
+
+```dotenv
+PORT=3000
+DATABASE_PATH=/srv/apps/p2-blog/data/blog.sqlite
+MEDIA_PATH=/srv/apps/p2-blog/data/media
+BACKUP_PATH=/srv/apps/p2-blog/backups
+```
+
+这四行是配置内容。数据库和上传文件各自持久化。第5节启动前可执行 `chmod 600 .env`，使该文件只允许自己的账号读写。
 
 ```bash
 
@@ -176,33 +186,51 @@ releaseName="$(date +%Y%m%d-%H%M%S)"
 cp -a dist "/srv/apps/p2-blog/releases/$releaseName"
 ln -sfnT "/srv/apps/p2-blog/releases/$releaseName" /srv/apps/p2-blog/current
 
-# 本项目在独立教学端口运行，API同源转发。
+# 教学入口仅监听服务器回环地址，通过 SSH 隧道访问。
 sudo tee /etc/nginx/conf.d/p2-blog.conf >/dev/null <<'EOF'
 server {
-    listen 8080;
+    listen 127.0.0.1:8080;
     server_name _;
     root /srv/apps/p2-blog/current;
     index index.html;
+    client_max_body_size 45m;
     location /api/ { proxy_pass http://127.0.0.1:3000; proxy_set_header Host $host; }
+    location /media/uploads/ { proxy_pass http://127.0.0.1:3000; proxy_set_header Host $host; }
+    location /media/ { try_files $uri =404; }
     location = /health { proxy_pass http://127.0.0.1:3000/health; }
     location / { try_files $uri $uri/ /index.html; }
 }
 EOF
 
 # 只有语法成功才reload。
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 curl -f http://127.0.0.1:8080/health
 ```
 
-cp复制dist；ln切换当前网页；Nginx的/api转发到本机Express，其他路由返回Vue首页。Windows浏览器打开http://自己的服务器地址:8080/。若本机curl成功公网打不开，教师核对云安全组的对应教学端口。每个项目端口不同，可在同一服务器保存全部项目。
+`cp -a` 复制构建产物，`ln -sfnT` 切换网页版本。Nginx 将 `/api/` 和 `/media/uploads/` 转发到 Express。项目自带的 `/media/` 文件从网页目录读取。 `client_max_body_size 45m` 为 40 MiB 文件及表单编码预留空间，文件大小仍由后端检查。
+
+在 Windows 新终端执行下面一行，替换 SSH 用户和地址。终端保持运行，再打开 `http://127.0.0.1:18080/`。
+
+```text
+ssh -N -L 18080:127.0.0.1:8080 实际用户@实际服务器地址
+```
+
+`-N` 表示只做转发，`-L` 将本机 18080 连到服务器的 8080。进入新建练习站后，使用虚构账号检查登录、文章和评论。用管理员上传自有小图片，确认图片在详情页能打开，重启本课服务后再验证一次。第11课完成态可在服务器工程根目录运行 `LIVE_BASE=http://127.0.0.1:8080 npm run verify:live`。该命令会向练习库写入验收记录。
 
 ## 7. 更新、日志与恢复
 
-先在Windows完成测试、commit、push。Ubuntu cd ~/apps/p2→git status确认干净→git pull --ff-only origin main（仅允许快进更新）→npm ci→npm test→npm run build→重复第6节网页发布→sudo systemctl restart p2-blog→curl health。不覆盖.env和持久数据目录。
+先在 Windows 测完并推送。Ubuntu 进入 `~/apps/p2`，用 `git status -sb` 检查当前分支、追踪分支及改动。确认干净后执行 `git pull --ff-only`，只允许快进更新当前追踪分支。随后逐条执行 `npm ci`、`npm test`、`npm run build`。全部通过后发布网页、重启本课服务，再检查健康和上传媒体读取。
 
-数据库项目发布前完成备份。博客：在工程目录使用node --env-file=.env database/backup.mjs /srv/apps/p2-blog/backups/发布前.sqlite；restore需要先停止API，并确认真实备份文件存在。社区SQLite备份在停止服务后复制持久.sqlite文件，启动前检查PRAGMA integrity_check；事务中的数据库不能直接复制并声称可靠备份。项目二不再提供第二套数据库分支。
+发布前在自己的练习站暂停写入，执行一致快照备份。在工程根目录逐条运行：
 
-恢复网页：先ls /srv/apps/p2-blog/releases查看实际存在版本，再用ln -sfnT指向确实存在的旧网页目录。恢复API：git switch --detach 自己已发布的真实标签→npm ci→sudo systemctl restart p2-blog；恢复后检查health与业务。继续开发前git switch main。涉及数据库迁移时，网页回退不等于数据库自动回退，需按真实备份恢复并确认模式兼容。
+```bash
+sudo systemctl stop p2-blog
+npm run db:backup -- --confirmed-stopped
+sudo systemctl start p2-blog
+```
+
+中间的 `--` 把后面的参数交给备份脚本，`--confirmed-stopped` 表明后端及其他写入工具均已关闭。最后一条用于恢复服务，备份报错也要先恢复服务再排查。成功后记录打印的备份目录，用 `npm run db:backup -- --verify "实际备份目录"` 核对摘要和数据库完整性。备份可能含服务端配置，保存在受限目录。恢复演练用第11课手册中的独立恢复副本，保留现有库和上传文件。
+
+恢复网页前用 `ls /srv/apps/p2-blog/releases` 查到实际旧版目录，再让 `current` 指向它。恢复 API 前先记录 `git branch --show-current` 的结果，核对旧版与现有数据库结构兼容，再切换到已发布标签、安装依赖并重启。恢复完成后检查健康和业务。需要继续更新时，切回刚才记录的分支。
 
 本机日志：journalctl -u p2-blog -n 40 --no-pager；Nginx日志在/var/log/nginx/。记录部署时间、Git提交、网页版本目录、数据库备份位置和健康检查结果。exit退出SSH返回Windows。
