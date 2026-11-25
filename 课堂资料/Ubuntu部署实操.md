@@ -1,6 +1,6 @@
 # P4 Ubuntu同源部署实操
 
-本手册用于项目四每次课的阿里云 Ubuntu 部署体验，尚未在学生真实服务器执行。仅对自己的服务器操作。Windows 命令与 Ubuntu 命令分开执行。教学网页使用端口 8082；默认通过 SSH 隧道访问，不把尚未完成安全任务的起步工程公开。
+项目四三课的完成态曾在 Ubuntu 的隔离环境验证过生成与分享主流程。此处使用自己的服务器和独立目录。Windows 命令与 Ubuntu 命令分别执行。教学网页在服务器回环端口 8082 提供，通过 SSH 隧道访问。
 
 ## 1. 从Windows登录
 
@@ -69,20 +69,29 @@ cd ~/classroom-apps
 read -r -p 'Your repository HTTPS URL: ' studentRepo
 read -r -p 'Your current lesson branch: ' studentBranch
 # 首次部署才clone；若目录已有工程，停止重复clone并检查。
-git clone --single-branch --branch "$studentBranch" "$studentRepo" p4
-cd p4
+git clone --single-branch --branch "$studentBranch" "$studentRepo" p4 && cd p4
 # 按锁文件安装；只在没有.env时生成配置。
 npm ci
-node tools/prepare-env.mjs
-# 生成前端静态文件。
-npm run check
-npm test
-npm run build
+(umask 077; node tools/prepare-env.mjs)
 ```
 
 `read -r -p` 显示提示并把输入保存到变量；`--branch` 指定自己本课实际分支，不能假定总是 main。`prepare-env.mjs` 只在没有 `.env` 时复制模板，不覆盖已有配置。项目四没有登录账号，也不需要 SESSION_SECRET。使用 `nano .env` 编辑配置，Ctrl+O 回车保存、Ctrl+X 退出；密钥永远不提交 Git。
 
-第1、2课有意保留后续任务占位，`npm run check` 是完整基线检查，部分条目失败不代表本课任务没做完。逐项按本课手册验收，再执行构建；第3课所有任务完成后应通过完整检查。不要为了消除检查提示提前照抄后续课答案。
+先确认克隆成功，终端位于该工程。检查配色、文件结构和本课已完成的任务：
+
+```bash
+npm run check
+```
+
+从以下三个命令中选择本课的一个。第一个数字是课次，最后一个数字是完成阶段，`.` 代表当前工程。脚本使用临时存储和模型替身。
+
+|课次|Ubuntu 验收命令|
+|---|---|
+|第1课|`node scripts/check-p4-stage.mjs . 1 6`|
+|第2课|`node scripts/check-p4-stage.mjs . 2 5`|
+|第3课|`node scripts/check-p4-stage.mjs . 3 5`，然后运行 `npm test`|
+
+所选检查通过后运行 `npm run build` 生成 `dist/`。第1、2课的完整单元测试包含后续课要求，使用当次课的阶段结果验收。
 
 ## 4. 持久数据和版本目录
 
@@ -149,7 +158,7 @@ ln -sfnT "/srv/classroom/p4/releases/$releaseName" /srv/classroom/p4/current
 # 本项目在独立教学端口运行，API同源转发。
 sudo tee /etc/nginx/conf.d/classroom-p4.conf >/dev/null <<'EOF'
 server {
-    listen 8082;
+    listen 127.0.0.1:8082;
     server_name _;
     root /srv/classroom/p4/current;
     index index.html;
@@ -163,8 +172,7 @@ server {
 }
 EOF
 # 只有语法成功才reload。
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 curl -f http://127.0.0.1:8082/health
 ```
 
@@ -182,10 +190,10 @@ ssh -N -L 18082:127.0.0.1:8082 实际用户@实际服务器地址
 
 ## 7. 更新、日志与恢复
 
-先在Windows完成测试、commit、push。Ubuntu cd ~/classroom-apps/p4→git status确认干净→git pull --ff-only origin main（仅允许快进更新）→npm ci→npm test→npm run build→重复第6节网页发布→sudo systemctl restart classroom-p4→curl health。不覆盖.env和持久数据目录。
+先在 Windows 测完并推送。Ubuntu 进入 `~/classroom-apps/p4`，用 `git status -sb` 确认分支、追踪分支和改动，再运行 `git pull --ff-only` 快进更新。执行 `npm ci`，按第3节运行本课检查并构建。全部通过后按第6节发布网页、重启本课服务，检查生成和分享。保留 `.env` 和持久化目录。
 
 本项目备份的是卡片 JSON 目录，不使用博客或 MySQL 的备份脚本。先停止 `classroom-p4`，再把 `/srv/classroom/p4/data` 复制到 `/srv/classroom/p4/backups/` 下一个新的带时间目录，确认文件齐全后启动服务；不要覆盖旧备份。恢复前也先保留现有目录，在新目录检查备份文件，再修改 `CARD_STORAGE_PATH` 指向恢复目录并重启。Navicat 不适用于这些 JSON 文件。
 
-恢复网页：先ls /srv/classroom/p4/releases查看实际存在版本，再用ln -sfnT指向确实存在的旧网页目录。恢复API：git switch --detach 自己已发布的真实标签→npm ci→sudo systemctl restart classroom-p4；恢复后检查health与业务。继续开发前git switch main。涉及数据库迁移时，网页回退不等于数据库自动回退，需按真实备份恢复并确认模式兼容。
+恢复网页时先用 `ls /srv/classroom/p4/releases` 查看实际发布目录，再把 `current` 指向所选版本。恢复 API 前用 `git branch --show-current` 记录当前分支。切换到已发布的标签、安装依赖并重启后，验证生成和原分享链接。继续更新时切回记录的分支。
 
 本机日志：journalctl -u classroom-p4 -n 40 --no-pager；Nginx日志在/var/log/nginx/。记录部署时间、Git提交、网页版本目录、数据库备份位置和健康检查结果。exit退出SSH返回Windows。
